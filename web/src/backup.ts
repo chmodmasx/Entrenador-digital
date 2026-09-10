@@ -8,7 +8,6 @@ type NativeBackupBridge = {
 
 declare global {
   interface Window {
-    Android?: NativeBackupBridge & Window['Android'];
     __ENTRENADOR_IMPORT_BACKUP?: (raw: string) => void;
   }
 }
@@ -29,6 +28,10 @@ const DB_NAME = 'entrenador-digital';
 const BACKUP_STORES = ['sessions', 'presets'];
 const APP_STORAGE_PREFIX = 'entrenador-digital-';
 const app = document.querySelector<HTMLDivElement>('#app');
+
+function nativeBridge(): NativeBackupBridge | undefined {
+  return (window as unknown as { Android?: NativeBackupBridge }).Android;
+}
 
 if (app) {
   const observer = new MutationObserver(() => window.setTimeout(enhanceSettingsBackup, 0));
@@ -68,7 +71,8 @@ function enhanceSettingsBackup(): void {
 
   exportButton.addEventListener('click', () => void exportBackup());
   importButton.addEventListener('click', () => {
-    if (!window.Android?.openBackup) {
+    const native = nativeBridge();
+    if (!native?.openBackup) {
       window.alert('La importación de copias está disponible en la aplicación Android.');
       return;
     }
@@ -76,7 +80,7 @@ function enhanceSettingsBackup(): void {
     const confirmed = window.confirm(
       'La importación reemplazará los perfiles, ajustes e historial actuales. ¿Querés continuar?'
     );
-    if (confirmed) window.Android.openBackup();
+    if (confirmed) native.openBackup();
   });
 }
 
@@ -86,9 +90,10 @@ async function exportBackup(): Promise<void> {
     const json = JSON.stringify(payload, null, 2);
     const date = new Date().toISOString().slice(0, 10);
     const fileName = `Entrenador-Digital-backup-${date}.json`;
+    const native = nativeBridge();
 
-    if (window.Android?.saveBackup) {
-      window.Android.saveBackup(json, fileName);
+    if (native?.saveBackup) {
+      native.saveBackup(json, fileName);
       return;
     }
 
@@ -130,7 +135,7 @@ async function collectBackup(): Promise<BackupPayload> {
     format: 'entrenador-digital-backup',
     schemaVersion: 1,
     exportedAt: new Date().toISOString(),
-    appVersion: window.Android?.getAppVersion?.() ?? 'web',
+    appVersion: nativeBridge()?.getAppVersion?.() ?? 'web',
     localStorage: storage,
     indexedDb: {
       name: DB_NAME,
