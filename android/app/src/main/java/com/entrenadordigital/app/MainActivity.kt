@@ -29,8 +29,19 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.statusBarColor = Color.rgb(3, 30, 84)
+        // Match the native status bar to the dark-blue top band rendered by the
+        // web UI. Android 15+ may draw the WebView behind a transparent status
+        // bar; older versions still use this color directly.
+        window.statusBarColor = Color.rgb(13, 52, 93)
         window.navigationBarColor = Color.rgb(3, 30, 84)
+
+        // Keep status-bar icons light on devices that support switching icon
+        // appearance. The theme also declares windowLightStatusBar=false.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+        }
 
         val assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
