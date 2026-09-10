@@ -81,10 +81,17 @@ jobs:
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/entrenador-digital.jks"
+          NORMALIZED="$KEYSTORE_B64"
+          NORMALIZED="${NORMALIZED#ANDROID_KEYSTORE_BASE64=}"
+          printf '%s' "$NORMALIZED" | tr -d '\r\n\t ' | base64 --decode > "$RUNNER_TEMP/entrenador-digital.jks"
           chmod 600 "$RUNNER_TEMP/entrenador-digital.jks"
+          keytool -list \
+            -keystore "$RUNNER_TEMP/entrenador-digital.jks" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias entrenadordigital >/dev/null
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/entrenador-digital.jks" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
