@@ -1,0 +1,23 @@
+# Web
+web/node_modules/
+web/dist/
+
+# Android / Gradle
+.gradle/
+android/.gradle/
+android/local.properties
+android/**/build/
+android/app/src/main/assets/www/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Signing
+*.jks
+*.keystore
