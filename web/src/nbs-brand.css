@@ -62,19 +62,39 @@
   z-index: 2;
 }
 
+/* Dark-background version of the original NBS vector. No card, tile or backing shape. */
 .brand-mark {
-  position: absolute;
-  left: 16px;
-  top: 14px;
-  width: 67%;
-  height: 46%;
+  position: absolute !important;
+  left: 4.5% !important;
+  top: 5.5% !important;
+  width: 60% !important;
+  height: 34% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  max-height: none !important;
   margin: 0 !important;
+  padding: 0 !important;
   border: 0 !important;
+  outline: 0 !important;
   border-radius: 0 !important;
-  background: url("./brand/nbs-logo.svg") left center / contain no-repeat !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  background-image: url("./brand/nbs-logo-light.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: left center !important;
+  background-size: contain !important;
   color: transparent !important;
   font-size: 0 !important;
-  filter: drop-shadow(0 4px 8px rgba(1, 156, 232, .18));
+  line-height: 0 !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.brand-mark::before,
+.brand-mark::after {
+  content: none !important;
+  display: none !important;
 }
 
 .brand-row > div:last-child {
@@ -182,9 +202,10 @@
   }
 
   .brand-mark {
-    left: 13px;
-    top: 12px;
-    width: 69%;
+    left: 4% !important;
+    top: 5% !important;
+    width: 62% !important;
+    height: 35% !important;
   }
 
   .brand-row > div:last-child,
@@ -200,6 +221,10 @@
 @media (max-width: 320px) {
   .brand-hero {
     border-radius: 18px !important;
+  }
+
+  .brand-mark {
+    width: 64% !important;
   }
 
   .hero-copy {
