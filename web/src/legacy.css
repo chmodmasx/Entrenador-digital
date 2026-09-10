@@ -1,0 +1,98 @@
+/* Compatibility fallbacks for old Android System WebView versions.
+   Modern browsers keep the primary CSS Grid layout from styles.css. */
+
+@supports not (display: grid) {
+  .app-shell {
+    display: block !important;
+    padding: 16px !important;
+  }
+
+  .home-screen,
+  .config-form,
+  .results-screen,
+  .history-list {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .home-screen > *,
+  .config-form > *,
+  .results-screen > *,
+  .history-list > * {
+    margin-bottom: 10px;
+  }
+
+  .exercise-grid,
+  .direction-options,
+  .stats-grid,
+  .outcome-grid,
+  .home-shortcuts,
+  .response-strip {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    margin: -4px;
+  }
+
+  .exercise-card,
+  .direction-options > *,
+  .stats-grid > * {
+    width: calc(50% - 8px);
+    margin: 4px;
+  }
+
+  .home-shortcuts > * {
+    width: calc(33.333% - 8px);
+    margin: 4px;
+  }
+
+  .outcome-grid > *,
+  .response-strip > * {
+    width: calc(25% - 8px);
+    margin: 4px;
+  }
+
+  .topbar,
+  .training-header,
+  .history-card {
+    display: flex !important;
+    align-items: center;
+  }
+
+  .topbar > :nth-child(2),
+  .training-header > :nth-child(2),
+  .history-card > :nth-child(2) {
+    flex: 1 1 auto;
+  }
+
+  .training-screen {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    padding: 12px 14px 10px !important;
+  }
+
+  .training-stage {
+    display: flex !important;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .stimulus-area {
+    display: flex !important;
+    min-height: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .response-strip {
+    flex-wrap: nowrap !important;
+  }
+
+  .response-button {
+    flex: 1 1 25%;
+    min-width: 0;
+  }
+}
