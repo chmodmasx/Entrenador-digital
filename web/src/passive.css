@@ -110,6 +110,123 @@
   height: min(78vmin, 520px);
 }
 
+/*
+ * Unified high-visibility stimulus stage.
+ *
+ * Symbol modes stay visually isolated; full-field colour modes deliberately
+ * consume most of the usable training area so they remain unmistakable from a
+ * few metres away. The higher-specificity !important declarations here are
+ * intentional because sections.css provides the generic multi-exercise sizes.
+ */
+body.is-training .training-screen-passive .main-stimulus.stimulus-colors,
+body.is-training .training-screen-passive .main-stimulus.stimulus-color-number {
+  width: min(90vw, 650px) !important;
+  height: min(58vh, 760px) !important;
+  max-width: 100%;
+  max-height: 94%;
+  filter: none !important;
+}
+
+body.is-training .training-screen-passive .main-stimulus.stimulus-numbers,
+body.is-training .training-screen-passive .main-stimulus.stimulus-stroop,
+body.is-training .training-screen-passive .main-stimulus.stimulus-words {
+  width: min(90vw, 650px) !important;
+  height: min(54vh, 680px) !important;
+  max-width: 100%;
+  max-height: 94%;
+}
+
+/* Colours: full filled signal instead of a small disc. */
+body.is-training .stimulus-colors .stimulus-color-disc {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: 6px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 30px !important;
+  background: var(--stimulus-color) !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -18px 40px rgba(3, 30, 84, 0.08),
+    0 0 34px rgba(255, 255, 255, 0.10),
+    0 24px 54px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Colour + number: same filled field, with the number as the dominant cue. */
+body.is-training .stimulus-color-number .stimulus-colored-number {
+  display: grid !important;
+  width: 100% !important;
+  height: 100% !important;
+  place-items: center;
+  padding: 0 7%;
+  border: 6px solid rgba(255, 255, 255, 0.14);
+  border-radius: 30px;
+  background: var(--stimulus-color);
+  color: #031e54 !important;
+  font-size: clamp(128px, 38vmin, 330px) !important;
+  font-weight: 950;
+  line-height: 0.86;
+  letter-spacing: -0.08em;
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -18px 40px rgba(3, 30, 84, 0.08),
+    0 0 34px rgba(255, 255, 255, 0.10),
+    0 24px 54px rgba(0, 0, 0, 0.18);
+}
+
+/* Numbers: no decorative panel, only a very large high-contrast cue. */
+body.is-training .stimulus-numbers .stimulus-number-text {
+  display: block !important;
+  max-width: 94vw;
+  color: #fff !important;
+  font-size: clamp(150px, 50vmin, 410px) !important;
+  font-weight: 950;
+  line-height: 0.82;
+  letter-spacing: -0.085em;
+  text-align: center;
+  text-shadow:
+    0 0 18px rgba(1, 156, 232, 0.55),
+    0 0 48px rgba(1, 156, 232, 0.22) !important;
+}
+
+/* Words: a restrained translucent support surface improves long-distance reading. */
+body.is-training .stimulus-words .stimulus-word-text {
+  display: grid !important;
+  width: min(88vw, 640px);
+  min-height: min(34vh, 370px);
+  place-items: center;
+  padding: clamp(24px, 6vw, 46px);
+  border: 2px solid rgba(255, 255, 255, 0.11);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #fff !important;
+  font-size: clamp(52px, 16vmin, 150px) !important;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 26px rgba(1, 156, 232, 0.20) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 18px 46px rgba(0, 0, 0, 0.10);
+}
+
+/* Stroop: keep the background neutral so ink colour remains the only colour cue. */
+body.is-training .stimulus-stroop .stimulus-stroop-word {
+  display: block !important;
+  max-width: 94vw;
+  color: var(--stimulus-color) !important;
+  font-size: clamp(64px, 20vmin, 185px) !important;
+  font-weight: 950;
+  line-height: 0.92;
+  letter-spacing: -0.06em;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.08) !important;
+}
+
 .training-mode-note {
   display: flex;
   gap: 10px;
@@ -205,6 +322,41 @@
   .training-screen-passive .main-stimulus {
     width: min(58vmin, 330px);
     height: min(58vmin, 330px);
+  }
+
+  body.is-training .training-screen-passive .main-stimulus.stimulus-colors,
+  body.is-training .training-screen-passive .main-stimulus.stimulus-color-number {
+    width: min(58vw, 560px) !important;
+    height: min(52vh, 300px) !important;
+    max-height: 100%;
+  }
+
+  body.is-training .training-screen-passive .main-stimulus.stimulus-numbers,
+  body.is-training .training-screen-passive .main-stimulus.stimulus-stroop,
+  body.is-training .training-screen-passive .main-stimulus.stimulus-words {
+    width: min(60vw, 560px) !important;
+    height: min(48vh, 270px) !important;
+  }
+
+  body.is-training .stimulus-colors .stimulus-color-disc,
+  body.is-training .stimulus-color-number .stimulus-colored-number {
+    border-width: 4px !important;
+    border-radius: 22px !important;
+  }
+
+  body.is-training .stimulus-words .stimulus-word-text {
+    min-height: min(36vh, 210px);
+    padding: 18px 28px;
+    border-radius: 22px;
+    font-size: clamp(42px, 12vmin, 96px) !important;
+  }
+
+  body.is-training .stimulus-numbers .stimulus-number-text {
+    font-size: clamp(100px, 34vmin, 220px) !important;
+  }
+
+  body.is-training .stimulus-stroop .stimulus-stroop-word {
+    font-size: clamp(50px, 14vmin, 110px) !important;
   }
 
   .elapsed-block strong {
