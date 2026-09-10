@@ -35,8 +35,8 @@ jobs:
           set -o pipefail
           npm run build 2>&1 | tee build.log
 
-      - name: Upload web build log
-        if: always()
+      - name: Upload web build log on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: web-build-log
@@ -62,8 +62,8 @@ jobs:
           set -o pipefail
           gradle --no-daemon assembleDebug 2>&1 | tee android-build.log
 
-      - name: Upload Android build log
-        if: always()
+      - name: Upload Android build log on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: android-build-log
