@@ -65,6 +65,19 @@ dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
 }
 
+// Never allow an unsigned APK to be mistaken for an official release.
+gradle.taskGraph.whenReady {
+    val requestsRelease = allTasks.any { task ->
+        task.name.contains("Release", ignoreCase = true)
+    }
+    if (requestsRelease && !hasReleaseSigning) {
+        throw GradleException(
+            "Release signing is required. Configure ANDROID_KEYSTORE_PATH, " +
+                "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD."
+        )
+    }
+}
+
 // The web build is produced first (npm run build). Android then copies that
 // self-contained output into the APK assets before every Android build.
 val syncWebAssets by tasks.registering(Copy::class) {
