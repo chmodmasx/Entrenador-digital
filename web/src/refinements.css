@@ -1,0 +1,72 @@
+:root {
+  --section-gap: 16px;
+}
+
+/* One vertical rhythm for section-based screens. Cards no longer depend on a
+   mixture of individual margins and container gaps. */
+.config-screen,
+.settings-screen,
+.results-screen {
+  display: grid;
+  align-content: start;
+  gap: var(--section-gap);
+}
+
+.config-screen > .topbar,
+.settings-screen > .topbar,
+.results-screen > .topbar,
+.config-screen > .exercise-intro-card,
+.settings-screen > .about-card {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.config-form {
+  gap: var(--section-gap) !important;
+}
+
+/* Keep nested rows compact; the 16 px rhythm is reserved for cards/sections. */
+.settings-card .setting-row + .setting-row,
+.settings-list-card .toggle-row + .toggle-row,
+.session-detail-list > div + div {
+  margin-top: 0;
+}
+
+/* Decimal steppers are converted to text inputs at runtime so WebView does not
+   apply HTML number/step validity rules. Preserve exactly the same visual style
+   as the original numeric field. */
+.stepper-value input[data-locale-stepper="true"] {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0;
+  height: 34px;
+  padding: 0 !important;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #031e54;
+  opacity: 1 !important;
+  font-size: 14px;
+  font-weight: 780;
+  line-height: 34px;
+  text-align: right;
+  caret-color: #019ce8;
+}
+
+.stepper-value input[data-locale-stepper="true"]:focus {
+  background: rgba(1, 156, 232, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(1, 156, 232, 0.35);
+  border-radius: 7px;
+}
+
+.stepper button.is-pressing,
+.stepper button:active {
+  background: #dcecf9;
+}
+
+@media (max-width: 380px) {
+  :root {
+    --section-gap: 14px;
+  }
+}
