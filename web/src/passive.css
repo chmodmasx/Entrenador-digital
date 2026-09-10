@@ -4,6 +4,55 @@
   display: none !important;
 }
 
+/*
+ * The base stepper originally made the real <input> transparent and placed a
+ * formatted <output> on top of it. That looks fine until the field receives
+ * focus: Android/WebView positions the text cursor inside the invisible input,
+ * while the user is looking at a different piece of text. Render the actual
+ * input instead so selection, cursor placement and the numeric keyboard all
+ * refer to the same visual text.
+ */
+.stepper-value {
+  min-width: 0;
+}
+
+.stepper-value input {
+  position: static;
+  inset: auto;
+  width: 48px;
+  min-width: 0;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  outline: 0;
+  background: transparent;
+  color: var(--navy);
+  opacity: 1;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 34px;
+  text-align: right;
+  caret-color: var(--blue);
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.stepper-value input::-webkit-inner-spin-button,
+.stepper-value input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.stepper-value input:focus {
+  background: rgba(1, 156, 232, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(1, 156, 232, 0.35);
+}
+
+.stepper-value output {
+  display: none;
+}
+
 .training-header {
   grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 8px;
