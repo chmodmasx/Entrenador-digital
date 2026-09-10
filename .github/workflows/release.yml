@@ -84,9 +84,26 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          NORMALIZED="$KEYSTORE_B64"
-          NORMALIZED="${NORMALIZED#ANDROID_KEYSTORE_BASE64=}"
-          printf '%s' "$NORMALIZED" | tr -d '\r\n\t ' | base64 --decode > "$RUNNER_TEMP/entrenador-digital.jks"
+          python3 - <<'PY'
+          import base64
+          import os
+          import re
+          from pathlib import Path
+
+          raw = os.environ['KEYSTORE_B64']
+          candidates = re.findall(r'[A-Za-z0-9+/=]{100,}', raw)
+          if not candidates:
+              raise SystemExit('No se encontró un bloque Base64 válido en ANDROID_KEYSTORE_BASE64')
+
+          candidate = max(candidates, key=len)
+          try:
+              data = base64.b64decode(candidate, validate=True)
+          except Exception as exc:
+              raise SystemExit(f'No se pudo decodificar la clave Base64: {exc}')
+
+          path = Path(os.environ['RUNNER_TEMP']) / 'entrenador-digital.jks'
+          path.write_bytes(data)
+          PY
           chmod 600 "$RUNNER_TEMP/entrenador-digital.jks"
           keytool -list \
             -keystore "$RUNNER_TEMP/entrenador-digital.jks" \
