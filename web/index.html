@@ -11,7 +11,7 @@
       (function () {
         /* Old Android WebViews may not implement Pointer Events. Translate the
            earliest touch/mouse signal into the pointerdown event used by the
-           reaction controls, while suppressing the synthetic mouse duplicate. */
+           application, while suppressing the synthetic mouse duplicate. */
         if (!('PointerEvent' in window)) {
           var lastTouch = 0;
           document.addEventListener('touchstart', function (event) {
@@ -51,6 +51,127 @@
             };
             return fakeRequest;
           };
+        }
+
+        /* Stopping a physical-training session must always work, including in
+           WebViews that suppress JavaScript confirmation dialogs. The current
+           stop flow calls confirm() before cancelling its timers; approve only
+           that specific prompt here so Detener and Android Back are immediate. */
+        var browserConfirm = window.confirm;
+        window.confirm = function (message) {
+          if (typeof message === 'string' && message.indexOf('¿Detener el entrenamiento?') === 0) {
+            return true;
+          }
+          return browserConfirm.call(window, message);
+        };
+
+        /* Press-and-hold support for every numeric stepper. A short tap keeps
+           the normal click behaviour from main.ts. Holding for 350 ms starts
+           repeating the same button click and accelerates after ~1.3 seconds. */
+        var holdButton = null;
+        var holdDelay = 0;
+        var holdInterval = 0;
+        var holdStartedAt = 0;
+        var didRepeat = false;
+        var suppressClickButton = null;
+        var suppressClickTimeout = 0;
+
+        function findStepperButton(target) {
+          var element = target;
+          while (element && element !== document.documentElement) {
+            if (element.tagName === 'BUTTON' && element.hasAttribute('data-delta')) {
+              var parent = element.parentElement;
+              while (parent && parent !== document.documentElement) {
+                if (parent.hasAttribute && parent.hasAttribute('data-stepper')) return element;
+                parent = parent.parentElement;
+              }
+              return null;
+            }
+            element = element.parentElement;
+          }
+          return null;
+        }
+
+        function clearHoldTimers() {
+          if (holdDelay) window.clearTimeout(holdDelay);
+          if (holdInterval) window.clearInterval(holdInterval);
+          holdDelay = 0;
+          holdInterval = 0;
+        }
+
+        function repeatHeldButton() {
+          if (!holdButton) return;
+          didRepeat = true;
+          holdButton.click();
+
+          var elapsed = Date.now() - holdStartedAt;
+          var nextDelay = elapsed > 1300 ? 65 : 115;
+          if (holdInterval) window.clearInterval(holdInterval);
+          holdInterval = window.setInterval(function () {
+            if (holdButton) holdButton.click();
+          }, nextDelay);
+        }
+
+        function startHold(target) {
+          var button = findStepperButton(target);
+          if (!button || button.disabled) return;
+
+          clearHoldTimers();
+          holdButton = button;
+          didRepeat = false;
+          holdStartedAt = Date.now();
+          holdDelay = window.setTimeout(function () {
+            repeatHeldButton();
+          }, 350);
+        }
+
+        function endHold() {
+          if (!holdButton) return;
+          var button = holdButton;
+          clearHoldTimers();
+          holdButton = null;
+
+          if (didRepeat) {
+            suppressClickButton = button;
+            if (suppressClickTimeout) window.clearTimeout(suppressClickTimeout);
+            suppressClickTimeout = window.setTimeout(function () {
+              suppressClickButton = null;
+            }, 500);
+          }
+          didRepeat = false;
+        }
+
+        document.addEventListener('click', function (event) {
+          var button = findStepperButton(event.target);
+          if (button && button === suppressClickButton) {
+            suppressClickButton = null;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+
+        document.addEventListener('contextmenu', function (event) {
+          if (findStepperButton(event.target)) event.preventDefault();
+        }, true);
+
+        if ('PointerEvent' in window) {
+          document.addEventListener('pointerdown', function (event) {
+            if (event.button !== undefined && event.button !== 0) return;
+            startHold(event.target);
+          }, true);
+          document.addEventListener('pointerup', endHold, true);
+          document.addEventListener('pointercancel', endHold, true);
+        } else {
+          document.addEventListener('touchstart', function (event) {
+            if (event.touches && event.touches.length === 1) startHold(event.target);
+          }, true);
+          document.addEventListener('touchend', endHold, true);
+          document.addEventListener('touchcancel', endHold, true);
+          document.addEventListener('mousedown', function (event) {
+            if (event.button === 0) startHold(event.target);
+          }, true);
+          document.addEventListener('mouseup', endHold, true);
+          document.addEventListener('mouseleave', endHold, true);
         }
 
         /* The Android shell watches the same body state as the web UI. This
