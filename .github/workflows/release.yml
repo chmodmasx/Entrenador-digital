@@ -91,16 +91,34 @@ jobs:
           from pathlib import Path
 
           raw = os.environ['KEYSTORE_B64']
-          candidates = re.findall(r'[A-Za-z0-9+/=]{100,}', raw)
-          if not candidates:
-              raise SystemExit('No se encontró un bloque Base64 válido en ANDROID_KEYSTORE_BASE64')
+          candidates = []
 
-          candidate = max(candidates, key=len)
-          try:
-              data = base64.b64decode(candidate, validate=True)
-          except Exception as exc:
-              raise SystemExit(f'No se pudo decodificar la clave Base64: {exc}')
+          for raw_line in raw.splitlines() or [raw]:
+              line = raw_line.strip().strip('"\'')
+              if not line:
+                  continue
+              candidates.append(line)
+              if '=' in line:
+                  candidates.append(line.split('=', 1)[1].strip().strip('"\''))
 
+          candidates.extend(re.findall(r'[A-Za-z0-9+/=]{100,}', raw))
+
+          decoded = []
+          for candidate in candidates:
+              compact = ''.join(candidate.split())
+              if len(compact) < 100:
+                  continue
+              try:
+                  data = base64.b64decode(compact, validate=True)
+              except Exception:
+                  continue
+              if data:
+                  decoded.append((len(data), data))
+
+          if not decoded:
+              raise SystemExit('ANDROID_KEYSTORE_BASE64 no contiene una clave Base64 válida')
+
+          data = max(decoded, key=lambda item: item[0])[1]
           path = Path(os.environ['RUNNER_TEMP']) / 'entrenador-digital.jks'
           path.write_bytes(data)
           PY
