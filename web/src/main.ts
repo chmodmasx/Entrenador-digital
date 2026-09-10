@@ -1,36 +1,52 @@
 import './styles.css';
+import './passive.css';
 
-type Direction = 'up' | 'right' | 'down' | 'left';
+type Direction =
+  | 'up'
+  | 'up-right'
+  | 'right'
+  | 'down-right'
+  | 'down'
+  | 'down-left'
+  | 'left'
+  | 'up-left';
 type Screen = 'home' | 'config' | 'training' | 'results' | 'history';
-type TrialOutcome = 'correct' | 'incorrect' | 'omitted';
+
+interface AndroidBridge {
+  setTrainingMode?: (enabled: boolean) => void;
+  finishApp?: () => void;
+}
+
+declare global {
+  interface Window {
+    Android?: AndroidBridge;
+    EntrenadorDigitalBack?: () => void;
+  }
+}
 
 interface ArrowConfig {
   repetitions: number;
   waitMinMs: number;
   waitMaxMs: number;
-  responseTimeoutMs: number;
+  stimulusDurationMs: number;
   directions: Direction[];
 }
 
 interface TrialResult {
   stimulus: Direction;
-  response?: Direction;
-  reactionTimeMs?: number;
-  outcome: TrialOutcome;
+  shownAtMs: number;
+  visibleForMs: number;
 }
 
 interface SessionSummary {
-  averageMs: number | null;
-  medianMs: number | null;
-  bestMs: number | null;
-  precision: number;
-  correct: number;
-  incorrect: number;
-  omitted: number;
-  anticipations: number;
+  completed: number;
+  planned: number;
+  durationMs: number;
+  stimulusDurationMs: number;
 }
 
 interface StoredSession {
+  schemaVersion: 2;
   id: string;
   exercise: 'arrows';
   startedAt: string;
@@ -41,15 +57,13 @@ interface StoredSession {
 }
 
 interface RuntimeSession {
-  startedAt: number;
+  createdAt: number;
+  activeStartedAt: number | null;
   startedAtIso: string;
   trials: TrialResult[];
-  anticipations: number;
   currentStimulus: Direction | null;
-  shownAt: number | null;
-  phase: 'countdown' | 'waiting' | 'active' | 'feedback' | 'done';
-  waitTimer?: number;
-  responseTimer?: number;
+  phase: 'countdown' | 'waiting' | 'active' | 'done';
+  phaseTimer?: number;
   clockTimer?: number;
 }
 
@@ -59,18 +73,24 @@ const app: HTMLDivElement = appElement;
 
 const directions: Record<Direction, { symbol: string; label: string; rotation: number }> = {
   up: { symbol: '↑', label: 'Arriba', rotation: 0 },
+  'up-right': { symbol: '↗', label: 'Arriba derecha', rotation: 45 },
   right: { symbol: '→', label: 'Derecha', rotation: 90 },
+  'down-right': { symbol: '↘', label: 'Abajo derecha', rotation: 135 },
   down: { symbol: '↓', label: 'Abajo', rotation: 180 },
+  'down-left': { symbol: '↙', label: 'Abajo izquierda', rotation: 225 },
   left: { symbol: '←', label: 'Izquierda', rotation: 270 },
+  'up-left': { symbol: '↖', label: 'Arriba izquierda', rotation: 315 },
 };
+
+const directionOrder = Object.keys(directions) as Direction[];
 
 let screen: Screen = 'home';
 let config: ArrowConfig = {
   repetitions: 20,
   waitMinMs: 700,
   waitMaxMs: 2200,
-  responseTimeoutMs: 1800,
-  directions: ['up', 'right', 'down', 'left'],
+  stimulusDurationMs: 900,
+  directions: [...directionOrder],
 };
 let runtime: RuntimeSession | null = null;
 let lastSession: StoredSession | null = null;
@@ -140,7 +160,7 @@ function renderHome(): void {
       <nav class="home-shortcuts" aria-label="Accesos rápidos">
         <button class="shortcut-card" data-action="history">
           <span class="shortcut-icon">${icon('history')}</span>
-          <span><strong>Historial</strong><small>Tu progreso</small></span>
+          <span><strong>Historial</strong><small>Sesiones realizadas</small></span>
         </button>
         <button class="shortcut-card" data-action="presets" disabled>
           <span class="shortcut-icon">${icon('sliders')}</span>
@@ -180,8 +200,8 @@ function renderConfig(): void {
 
       <form id="arrow-config" class="config-form">
         <section class="settings-card">
-          <div class="section-title"><span>◷</span><div><h2>Sesión</h2><p>Define la cantidad de intentos</p></div></div>
-          ${stepper('repetitions', 'Repeticiones', config.repetitions, 'intentos', 4, 100, 1)}
+          <div class="section-title"><span>◷</span><div><h2>Sesión</h2><p>Define cuántas señales aparecerán</p></div></div>
+          ${stepper('repetitions', 'Cantidad de estímulos', config.repetitions, 'señales', 2, 100, 1)}
         </section>
 
         <section class="settings-card">
@@ -191,14 +211,14 @@ function renderConfig(): void {
         </section>
 
         <section class="settings-card">
-          <div class="section-title"><span>ϟ</span><div><h2>Respuesta</h2><p>Tiempo disponible para responder</p></div></div>
-          ${stepper('timeout', 'Tiempo máximo', config.responseTimeoutMs / 1000, 's', 0.4, 5, 0.1)}
+          <div class="section-title"><span>ϟ</span><div><h2>Estímulo</h2><p>Tiempo que cada flecha permanece visible</p></div></div>
+          ${stepper('stimulusDuration', 'Duración visible', config.stimulusDurationMs / 1000, 's', 0.2, 5, 0.1)}
         </section>
 
         <section class="settings-card">
-          <div class="section-title"><span>✣</span><div><h2>Direcciones</h2><p>Selecciona las direcciones a incluir</p></div></div>
-          <div class="direction-options">
-            ${(Object.keys(directions) as Direction[]).map((direction) => `
+          <div class="section-title"><span>✣</span><div><h2>Direcciones</h2><p>Selecciona las direcciones que pueden aparecer</p></div></div>
+          <div class="direction-options direction-options-eight">
+            ${directionOrder.map((direction) => `
               <label class="check-option">
                 <input type="checkbox" name="direction" value="${direction}" ${config.directions.includes(direction) ? 'checked' : ''} />
                 <span class="fake-check">✓</span>
@@ -208,10 +228,10 @@ function renderConfig(): void {
           </div>
         </section>
 
-        <section class="settings-card compact-card">
-          <div class="section-title"><span>☝</span><div><h2>Modo de respuesta</h2><p>Usa los cuatro botones de la pantalla</p></div></div>
-          <div class="selected-mode">▣ &nbsp; Botones en pantalla</div>
-        </section>
+        <div class="training-mode-note">
+          <span>i</span>
+          <div><strong>Entrenamiento físico</strong>La app muestra las señales automáticamente. Durante la sesión no necesitas tocar la pantalla: la respuesta se realiza en el entrenamiento real.</div>
+        </div>
 
         <p class="form-error" id="form-error" role="alert"></p>
         <button class="primary-button start-button" type="submit"><span>▶</span> Iniciar entrenamiento</button>
@@ -223,11 +243,11 @@ function renderConfig(): void {
   app.querySelector<HTMLFormElement>('#arrow-config')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
-    const selectedDirections = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="direction"]:checked')).map((el) => el.value as Direction);
+    const selectedDirections = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="direction"]:checked')).map((element) => element.value as Direction);
     const repetitions = numberInput('repetitions');
     const waitMin = numberInput('waitMin');
     const waitMax = numberInput('waitMax');
-    const timeout = numberInput('timeout');
+    const stimulusDuration = numberInput('stimulusDuration');
     const error = app.querySelector<HTMLParagraphElement>('#form-error');
 
     if (selectedDirections.length < 2) {
@@ -243,7 +263,7 @@ function renderConfig(): void {
       repetitions: Math.round(repetitions),
       waitMinMs: Math.round(waitMin * 1000),
       waitMaxMs: Math.round(waitMax * 1000),
-      responseTimeoutMs: Math.round(timeout * 1000),
+      stimulusDurationMs: Math.round(stimulusDuration * 1000),
       directions: selectedDirections,
     };
     startTraining();
@@ -264,16 +284,18 @@ function stepper(name: string, label: string, value: number, unit: string, min: 
 }
 
 function bindSteppers(): void {
-  app.querySelectorAll<HTMLElement>('[data-stepper]').forEach((stepperEl) => {
-    const input = stepperEl.querySelector<HTMLInputElement>('input');
-    const output = stepperEl.querySelector<HTMLOutputElement>('output');
+  app.querySelectorAll<HTMLElement>('[data-stepper]').forEach((stepperElement) => {
+    const input = stepperElement.querySelector<HTMLInputElement>('input');
+    const output = stepperElement.querySelector<HTMLOutputElement>('output');
     if (!input || !output) return;
+
     const refresh = () => {
       const value = Number(input.value);
       output.value = Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
     };
+
     input.addEventListener('input', refresh);
-    stepperEl.querySelectorAll<HTMLButtonElement>('button[data-delta]').forEach((button) => {
+    stepperElement.querySelectorAll<HTMLButtonElement>('button[data-delta]').forEach((button) => {
       button.addEventListener('click', () => {
         const delta = Number(button.dataset.delta ?? 0);
         const min = Number(input.min);
@@ -293,12 +315,11 @@ function numberInput(id: string): number {
 function startTraining(): void {
   clearRuntimeTimers();
   runtime = {
-    startedAt: performance.now(),
+    createdAt: performance.now(),
+    activeStartedAt: null,
     startedAtIso: new Date().toISOString(),
     trials: [],
-    anticipations: 0,
     currentStimulus: null,
-    shownAt: null,
     phase: 'countdown',
   };
   screen = 'training';
@@ -308,163 +329,146 @@ function startTraining(): void {
 
 function renderTraining(): void {
   app.innerHTML = `
-    <main class="training-screen">
+    <main class="training-screen training-screen-passive">
       <header class="training-header">
-        <button class="training-exit" data-action="exit" aria-label="Salir del entrenamiento">←</button>
+        <button class="training-exit" data-action="back" aria-label="Detener y volver">←</button>
         <div class="training-heading"><strong>Flechas</strong><span>Sesión en curso</span></div>
-        <span class="trial-counter" id="trial-counter">0 / ${config.repetitions}</span>
+        <button class="training-stop" data-action="stop">Detener</button>
       </header>
-      <div class="training-progress" aria-hidden="true"><span id="progress-fill"></span></div>
 
-      <section class="training-stage">
+      <div class="training-progress" aria-hidden="true"><span id="progress-fill"></span></div>
+      <div class="training-meta"><span>Estímulos completados</span><strong id="trial-counter">0 / ${config.repetitions}</strong></div>
+
+      <section class="training-stage training-stage-passive">
         <div class="elapsed-block"><strong id="elapsed-time">0:00</strong><span>Tiempo transcurrido</span></div>
-        <div class="stimulus-area" id="stimulus-area">
+        <div class="stimulus-area stimulus-area-passive" id="stimulus-area">
           <div class="countdown" id="countdown">3</div>
           <div class="main-stimulus" id="main-stimulus" aria-live="off"></div>
-          <div class="feedback-message" id="feedback-message" aria-live="polite"></div>
         </div>
       </section>
 
-      <div class="response-strip" aria-label="Respuesta">
-        ${(Object.keys(directions) as Direction[]).map((direction) => `
-          <button class="response-button" data-response="${direction}" aria-label="${directions[direction].label}">
-            <span>${directions[direction].symbol}</span><small>${directions[direction].label}</small>
-          </button>`).join('')}
-      </div>
       <p class="training-motto"><span></span> CONCENTRACIÓN EN CADA SEGUNDO <span></span></p>
     </main>`;
 
-  app.querySelector<HTMLButtonElement>('[data-action="exit"]')?.addEventListener('click', () => {
-    if (window.confirm('¿Quieres finalizar este entrenamiento?')) {
-      clearRuntimeTimers();
-      runtime = null;
-      navigate('home');
-    }
-  });
-
-  app.querySelectorAll<HTMLButtonElement>('[data-response]').forEach((button) => {
-    const direction = button.dataset.response as Direction;
-    const handler = () => handleResponse(direction, button);
-    button.addEventListener('pointerdown', handler, { passive: true });
-  });
-
+  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', requestStopTraining);
+  app.querySelector<HTMLButtonElement>('[data-action="stop"]')?.addEventListener('click', requestStopTraining);
   startElapsedClock();
 }
 
 function beginCountdown(): void {
   const countdown = app.querySelector<HTMLDivElement>('#countdown');
   if (!runtime || !countdown) return;
-  let value = 3;
-  countdown.textContent = String(value);
-  const tick = window.setInterval(() => {
-    value -= 1;
-    if (value > 0) {
-      countdown.textContent = String(value);
+
+  const steps = ['3', '2', '1', '¡Ya!'];
+  let index = 0;
+  countdown.hidden = false;
+
+  const advance = () => {
+    if (!runtime || runtime.phase !== 'countdown') return;
+
+    if (index < steps.length) {
+      countdown.textContent = steps[index];
+      index += 1;
+      runtime.phaseTimer = window.setTimeout(advance, 700);
       return;
     }
-    window.clearInterval(tick);
-    countdown.textContent = '¡Ya!';
-    window.setTimeout(() => {
-      countdown.hidden = true;
-      scheduleNextStimulus();
-    }, 400);
-  }, 700);
+
+    countdown.textContent = '';
+    countdown.hidden = true;
+    runtime.activeStartedAt = performance.now();
+    scheduleNextStimulus();
+  };
+
+  advance();
 }
 
-function scheduleNextStimulus(delayOverride?: number): void {
+function scheduleNextStimulus(): void {
   if (!runtime) return;
   if (runtime.trials.length >= config.repetitions) {
     void finishTraining();
     return;
   }
-  clearStimulusTimers();
+
+  clearPhaseTimer();
   runtime.phase = 'waiting';
   runtime.currentStimulus = null;
-  runtime.shownAt = null;
   setStimulusHtml('');
-  setFeedback('', '');
 
-  const delay = delayOverride ?? randomBetween(config.waitMinMs, config.waitMaxMs);
-  runtime.waitTimer = window.setTimeout(showStimulus, delay);
+  const delay = randomBetween(config.waitMinMs, config.waitMaxMs);
+  runtime.phaseTimer = window.setTimeout(showStimulus, delay);
 }
 
 function showStimulus(): void {
   if (!runtime || runtime.phase !== 'waiting') return;
+
   const direction = config.directions[Math.floor(Math.random() * config.directions.length)];
+  if (!direction) return;
+
   runtime.currentStimulus = direction;
   runtime.phase = 'active';
 
   requestAnimationFrame(() => {
-    if (!runtime || runtime.phase !== 'active') return;
+    if (!runtime || runtime.phase !== 'active' || runtime.currentStimulus !== direction) return;
     setStimulusHtml(arrowSvg(direction, 'stimulus-svg'));
-    requestAnimationFrame(() => {
-      if (!runtime || runtime.phase !== 'active') return;
-      runtime.shownAt = performance.now();
-      runtime.responseTimer = window.setTimeout(() => registerOmission(), config.responseTimeoutMs);
-    });
+    const activeStartedAt = runtime.activeStartedAt ?? performance.now();
+    const shownAt = performance.now();
+
+    runtime.phaseTimer = window.setTimeout(() => {
+      if (!runtime || runtime.phase !== 'active' || runtime.currentStimulus !== direction) return;
+
+      const actualVisibleForMs = performance.now() - shownAt;
+      runtime.trials.push({
+        stimulus: direction,
+        shownAtMs: shownAt - activeStartedAt,
+        visibleForMs: actualVisibleForMs,
+      });
+      runtime.currentStimulus = null;
+      setStimulusHtml('');
+      updateTrainingProgress();
+
+      if (runtime.trials.length >= config.repetitions) {
+        void finishTraining();
+      } else {
+        scheduleNextStimulus();
+      }
+    }, config.stimulusDurationMs);
   });
-}
-
-function handleResponse(direction: Direction, button: HTMLButtonElement): void {
-  if (!runtime) return;
-  pulseButton(button);
-
-  if (runtime.phase === 'waiting') {
-    runtime.anticipations += 1;
-    clearStimulusTimers();
-    runtime.phase = 'feedback';
-    setFeedback('Anticipación', 'warning');
-    window.setTimeout(() => scheduleNextStimulus(900), 350);
-    return;
-  }
-
-  if (runtime.phase !== 'active' || !runtime.currentStimulus || runtime.shownAt === null) return;
-  const reactionTimeMs = performance.now() - runtime.shownAt;
-  const correct = direction === runtime.currentStimulus;
-  runtime.trials.push({
-    stimulus: runtime.currentStimulus,
-    response: direction,
-    reactionTimeMs,
-    outcome: correct ? 'correct' : 'incorrect',
-  });
-  runtime.phase = 'feedback';
-  clearStimulusTimers();
-  updateTrainingProgress();
-  setFeedback(correct ? `${Math.round(reactionTimeMs)} ms` : 'Incorrecta', correct ? 'success' : 'error');
-  window.setTimeout(() => scheduleNextStimulus(), correct ? 220 : 420);
-}
-
-function registerOmission(): void {
-  if (!runtime || runtime.phase !== 'active' || !runtime.currentStimulus) return;
-  runtime.trials.push({ stimulus: runtime.currentStimulus, outcome: 'omitted' });
-  runtime.phase = 'feedback';
-  clearStimulusTimers();
-  updateTrainingProgress();
-  setFeedback('Sin respuesta', 'warning');
-  window.setTimeout(() => scheduleNextStimulus(), 450);
 }
 
 function updateTrainingProgress(): void {
   if (!runtime) return;
-  const done = runtime.trials.length;
+  const completed = runtime.trials.length;
   const counter = app.querySelector<HTMLElement>('#trial-counter');
   const fill = app.querySelector<HTMLElement>('#progress-fill');
-  if (counter) counter.textContent = `${done} / ${config.repetitions}`;
-  if (fill) fill.style.width = `${Math.min(100, done / config.repetitions * 100)}%`;
+  if (counter) counter.textContent = `${completed} / ${config.repetitions}`;
+  if (fill) fill.style.width = `${Math.min(100, completed / config.repetitions * 100)}%`;
 }
 
 function startElapsedClock(): void {
   if (!runtime) return;
+
   const update = () => {
     if (!runtime) return;
-    const elapsed = Math.floor((performance.now() - runtime.startedAt) / 1000);
-    const min = Math.floor(elapsed / 60);
-    const sec = elapsed % 60;
+    const elapsedMs = runtime.activeStartedAt === null ? 0 : performance.now() - runtime.activeStartedAt;
     const target = app.querySelector<HTMLElement>('#elapsed-time');
-    if (target) target.textContent = `${min}:${String(sec).padStart(2, '0')}`;
+    if (target) target.textContent = formatDuration(elapsedMs);
   };
+
   update();
   runtime.clockTimer = window.setInterval(update, 250);
+}
+
+function requestStopTraining(): void {
+  if (screen !== 'training') return;
+  const shouldStop = window.confirm('¿Detener el entrenamiento?\n\nLa sesión actual no se guardará.');
+  if (!shouldStop) return;
+  stopTraining();
+}
+
+function stopTraining(): void {
+  clearRuntimeTimers();
+  runtime = null;
+  navigate('config');
 }
 
 function setStimulusHtml(html: string): void {
@@ -472,57 +476,33 @@ function setStimulusHtml(html: string): void {
   if (stimulus) stimulus.innerHTML = html;
 }
 
-function setFeedback(text: string, state: '' | 'success' | 'error' | 'warning'): void {
-  const feedback = app.querySelector<HTMLDivElement>('#feedback-message');
-  if (!feedback) return;
-  feedback.textContent = text;
-  feedback.dataset.state = state;
-}
-
-function pulseButton(button: HTMLButtonElement): void {
-  button.classList.remove('pressed');
-  void button.offsetWidth;
-  button.classList.add('pressed');
-  window.setTimeout(() => button.classList.remove('pressed'), 120);
-}
-
 async function finishTraining(): Promise<void> {
   if (!runtime || runtime.phase === 'done') return;
+
   runtime.phase = 'done';
   clearRuntimeTimers();
-  const summary = summarize(runtime.trials, runtime.anticipations);
+  const activeStartedAt = runtime.activeStartedAt ?? runtime.createdAt;
+  const durationMs = Math.max(0, performance.now() - activeStartedAt);
+
   lastSession = {
+    schemaVersion: 2,
     id: createId(),
     exercise: 'arrows',
     startedAt: runtime.startedAtIso,
     finishedAt: new Date().toISOString(),
     config: { ...config, directions: [...config.directions] },
     trials: runtime.trials.map((trial) => ({ ...trial })),
-    summary,
+    summary: {
+      completed: runtime.trials.length,
+      planned: config.repetitions,
+      durationMs,
+      stimulusDurationMs: config.stimulusDurationMs,
+    },
   };
+
   await saveSession(lastSession);
   runtime = null;
   navigate('results');
-}
-
-function summarize(trials: TrialResult[], anticipations: number): SessionSummary {
-  const correct = trials.filter((t) => t.outcome === 'correct');
-  const incorrect = trials.filter((t) => t.outcome === 'incorrect').length;
-  const omitted = trials.filter((t) => t.outcome === 'omitted').length;
-  const times = correct.map((t) => t.reactionTimeMs).filter((value): value is number => typeof value === 'number').sort((a, b) => a - b);
-  const averageMs = times.length ? times.reduce((sum, value) => sum + value, 0) / times.length : null;
-  const medianMs = times.length ? (times.length % 2 ? times[(times.length - 1) / 2] : (times[times.length / 2 - 1] + times[times.length / 2]) / 2) : null;
-  const precisionBase = correct.length + incorrect + omitted;
-  return {
-    averageMs,
-    medianMs,
-    bestMs: times.length ? times[0] : null,
-    precision: precisionBase ? correct.length / precisionBase * 100 : 0,
-    correct: correct.length,
-    incorrect,
-    omitted,
-    anticipations,
-  };
 }
 
 function renderResults(): void {
@@ -530,37 +510,35 @@ function renderResults(): void {
     navigate('home');
     return;
   }
-  const s = lastSession.summary;
+
+  const session = lastSession;
+  const summary = session.summary;
   app.innerHTML = `
     <main class="app-shell results-screen">
       <header class="topbar results-topbar">
         <button class="icon-button" data-action="home" aria-label="Volver al inicio">←</button>
-        <div><h1>Resultados</h1><p>Entrenamiento de Flechas</p></div>
+        <div><h1>Sesión completada</h1><p>Entrenamiento de Flechas</p></div>
         <div class="topbar-spacer"></div>
       </header>
 
       <section class="completion-card">
         <div class="trophy">★</div>
-        <div><h2>¡Gran trabajo!</h2><p>Has completado ${lastSession.config.repetitions} intentos.</p></div>
+        <div><h2>¡Entrenamiento finalizado!</h2><p>La secuencia de estímulos se completó correctamente.</p></div>
       </section>
 
       <section class="stats-grid">
-        ${statCard('Promedio', metric(s.averageMs), '▥')}
-        ${statCard('Mediana', metric(s.medianMs), 'Σ')}
-        ${statCard('Mejor', metric(s.bestMs), '◆')}
-        ${statCard('Precisión', `${s.precision.toFixed(0)} %`, '◎')}
+        ${statCard('Estímulos', `${summary.completed} / ${summary.planned}`, '↑')}
+        ${statCard('Duración', formatDuration(summary.durationMs), '◷')}
+        ${statCard('Señal visible', formatSeconds(summary.stimulusDurationMs), 'ϟ')}
+        ${statCard('Direcciones', String(session.config.directions.length), '✣')}
       </section>
 
-      <section class="chart-card">
-        <div class="chart-heading"><h2>Tiempos de reacción</h2><span>ms</span></div>
-        ${reactionChart(lastSession.trials)}
-      </section>
-
-      <section class="outcome-grid">
-        <div class="outcome success"><span>✓</span><small>Correctas</small><strong>${s.correct}</strong></div>
-        <div class="outcome error"><span>×</span><small>Incorrectas</small><strong>${s.incorrect}</strong></div>
-        <div class="outcome warning"><span>!</span><small>Anticipaciones</small><strong>${s.anticipations}</strong></div>
-        <div class="outcome neutral"><span>–</span><small>Omitidas</small><strong>${s.omitted}</strong></div>
+      <section class="session-detail-card">
+        <h2>Configuración utilizada</h2>
+        <dl class="session-detail-list">
+          <div><dt>Espera entre señales</dt><dd>${formatSeconds(session.config.waitMinMs)} – ${formatSeconds(session.config.waitMaxMs)}</dd></div>
+          <div><dt>Direcciones activas</dt><dd>${session.config.directions.map((direction) => directions[direction].symbol).join(' ')}</dd></div>
+        </dl>
       </section>
 
       <div class="result-actions">
@@ -577,66 +555,51 @@ function statCard(label: string, value: string, symbol: string): string {
   return `<div class="stat-card"><span>${symbol}</span><div><small>${label}</small><strong>${value}</strong></div></div>`;
 }
 
-function metric(value: number | null): string {
-  return value === null ? '—' : `${Math.round(value)} ms`;
-}
-
-function reactionChart(trials: TrialResult[]): string {
-  const points = trials
-    .map((trial, index) => ({ index, value: trial.reactionTimeMs }))
-    .filter((point): point is { index: number; value: number } => typeof point.value === 'number');
-  if (!points.length) return '<div class="empty-chart">No hay tiempos válidos para graficar.</div>';
-
-  const width = 600;
-  const height = 220;
-  const padX = 30;
-  const padY = 24;
-  const max = Math.max(500, ...points.map((p) => p.value));
-  const min = Math.max(0, Math.min(...points.map((p) => p.value)) - 80);
-  const usableW = width - padX * 2;
-  const usableH = height - padY * 2;
-  const x = (index: number) => padX + (trials.length <= 1 ? 0 : index / (trials.length - 1) * usableW);
-  const y = (value: number) => padY + (1 - (value - min) / Math.max(1, max - min)) * usableH;
-  const polyline = points.map((p) => `${x(p.index).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-  return `
-    <svg class="reaction-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de tiempos de reacción">
-      <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${height - padY}" class="chart-axis"/>
-      <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" class="chart-axis"/>
-      <line x1="${padX}" y1="${padY + usableH / 2}" x2="${width - padX}" y2="${padY + usableH / 2}" class="chart-gridline"/>
-      <polyline points="${polyline}" class="chart-line"/>
-      ${points.map((p) => `<circle cx="${x(p.index)}" cy="${y(p.value)}" r="5" class="chart-dot"/>`).join('')}
-    </svg>`;
-}
-
 async function renderHistory(): Promise<void> {
   app.innerHTML = `
     <main class="app-shell history-screen">
       <header class="topbar">
         <button class="icon-button" data-action="back" aria-label="Volver">←</button>
-        <div><h1>Historial</h1><p>Tus entrenamientos guardados</p></div>
+        <div><h1>Historial</h1><p>Sesiones de entrenamiento guardadas</p></div>
         <div class="topbar-spacer"></div>
       </header>
       <div class="history-list" id="history-list"><p class="loading">Cargando…</p></div>
     </main>`;
-  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', () => navigate('home'));
 
+  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', () => navigate('home'));
   const sessions = await listSessions();
   if (screen !== 'history') return;
+
   const list = app.querySelector<HTMLDivElement>('#history-list');
   if (!list) return;
+
   if (!sessions.length) {
     list.innerHTML = '<div class="empty-state"><div>◷</div><h2>Todavía no hay sesiones</h2><p>Completa un entrenamiento de Flechas y aparecerá aquí.</p><button class="primary-button" data-action="train">Entrenar ahora</button></div>';
     list.querySelector<HTMLButtonElement>('[data-action="train"]')?.addEventListener('click', () => navigate('config'));
     return;
   }
+
   list.innerHTML = sessions.map((session) => {
     const date = new Date(session.finishedAt);
     return `<article class="history-card">
       <div class="history-symbol">↑</div>
       <div class="history-copy"><strong>Flechas</strong><span>${date.toLocaleDateString('es-AR')} · ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span></div>
-      <div class="history-score"><strong>${metric(session.summary.averageMs)}</strong><span>${session.summary.precision.toFixed(0)} % precisión</span></div>
+      <div class="history-score"><strong>${session.summary.completed} estímulos</strong><span>${formatDuration(session.summary.durationMs)}</span></div>
     </article>`;
   }).join('');
+}
+
+function formatDuration(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatSeconds(milliseconds: number): string {
+  const seconds = milliseconds / 1000;
+  const value = Number.isInteger(seconds) ? seconds.toFixed(0) : seconds.toFixed(1).replace('.', ',');
+  return `${value} s`;
 }
 
 function randomBetween(min: number, max: number): number {
@@ -647,23 +610,39 @@ function createId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function clearStimulusTimers(): void {
-  if (!runtime) return;
-  if (runtime.waitTimer !== undefined) window.clearTimeout(runtime.waitTimer);
-  if (runtime.responseTimer !== undefined) window.clearTimeout(runtime.responseTimer);
-  runtime.waitTimer = undefined;
-  runtime.responseTimer = undefined;
+function clearPhaseTimer(): void {
+  if (!runtime || runtime.phaseTimer === undefined) return;
+  window.clearTimeout(runtime.phaseTimer);
+  runtime.phaseTimer = undefined;
 }
 
 function clearRuntimeTimers(): void {
   if (!runtime) return;
-  clearStimulusTimers();
+  clearPhaseTimer();
   if (runtime.clockTimer !== undefined) window.clearInterval(runtime.clockTimer);
   runtime.clockTimer = undefined;
 }
 
+function handleAppBack(): void {
+  if (screen === 'training') {
+    requestStopTraining();
+    return;
+  }
+  if (screen === 'config' || screen === 'results' || screen === 'history') {
+    navigate('home');
+    return;
+  }
+  if (window.Android && typeof window.Android.finishApp === 'function') {
+    window.Android.finishApp();
+  } else if (window.history.length > 1) {
+    window.history.back();
+  }
+}
+
+window.EntrenadorDigitalBack = handleAppBack;
+
 const DB_NAME = 'entrenador-digital';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SESSION_STORE = 'sessions';
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -671,10 +650,9 @@ function openDatabase(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(SESSION_STORE)) {
-        const store = db.createObjectStore(SESSION_STORE, { keyPath: 'id' });
-        store.createIndex('finishedAt', 'finishedAt');
-      }
+      if (db.objectStoreNames.contains(SESSION_STORE)) db.deleteObjectStore(SESSION_STORE);
+      const store = db.createObjectStore(SESSION_STORE, { keyPath: 'id' });
+      store.createIndex('finishedAt', 'finishedAt');
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -685,10 +663,10 @@ async function saveSession(session: StoredSession): Promise<void> {
   try {
     const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(SESSION_STORE, 'readwrite');
-      tx.objectStore(SESSION_STORE).put(session);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      const transaction = db.transaction(SESSION_STORE, 'readwrite');
+      transaction.objectStore(SESSION_STORE).put(session);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
     });
     db.close();
   } catch (error) {
@@ -700,9 +678,18 @@ async function listSessions(): Promise<StoredSession[]> {
   try {
     const db = await openDatabase();
     const sessions = await new Promise<StoredSession[]>((resolve, reject) => {
-      const tx = db.transaction(SESSION_STORE, 'readonly');
-      const request = tx.objectStore(SESSION_STORE).getAll();
-      request.onsuccess = () => resolve(request.result as StoredSession[]);
+      const result: StoredSession[] = [];
+      const transaction = db.transaction(SESSION_STORE, 'readonly');
+      const request = transaction.objectStore(SESSION_STORE).openCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          result.push(cursor.value as StoredSession);
+          cursor.continue();
+        } else {
+          resolve(result);
+        }
+      };
       request.onerror = () => reject(request.error);
     });
     db.close();
