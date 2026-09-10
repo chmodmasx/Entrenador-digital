@@ -69,6 +69,19 @@ class MainActivity : Activity() {
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
     }
 
+    @Deprecated("Android back is routed through the web application so active training can stop cleanly")
+    override fun onBackPressed() {
+        if (::webView.isInitialized) {
+            webView.evaluateJavascript(
+                "if (window.EntrenadorDigitalBack) { window.EntrenadorDigitalBack(); } else { window.history.back(); }",
+                null
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+        }
+    }
+
     override fun onDestroy() {
         webView.removeJavascriptInterface("Android")
         webView.destroy()
@@ -116,5 +129,10 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun getAppVersion(): String = BuildConfig.VERSION_NAME
+
+        @JavascriptInterface
+        fun finishApp() {
+            activity.runOnUiThread { activity.finish() }
+        }
     }
 }
