@@ -1,0 +1,521 @@
+/* Global training profiles. Profiles own every exercise configuration. */
+
+.active-profile-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 92px;
+  padding: 14px 16px;
+  border: 1px solid rgba(1, 156, 232, .22);
+  border-radius: 19px;
+  background: linear-gradient(135deg, #eef8fe, #e7f3fc);
+  color: var(--navy);
+  text-align: left;
+  box-shadow: 0 7px 20px rgba(3, 30, 84, .055);
+}
+
+.active-profile-card:active {
+  transform: scale(.99);
+  background: #e4f2fb;
+}
+
+.active-profile-icon,
+.profile-context-icon,
+.profiles-intro-icon {
+  display: grid;
+  place-items: center;
+  color: var(--navy);
+  background: rgba(1, 156, 232, .10);
+}
+
+.active-profile-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+}
+
+.active-profile-icon svg,
+.profile-context-icon svg,
+.profiles-intro-icon svg,
+.result-profile-note svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.active-profile-copy {
+  display: block;
+  min-width: 0;
+}
+
+.active-profile-copy small,
+.active-profile-copy strong,
+.active-profile-copy > span {
+  display: block;
+}
+
+.active-profile-copy small {
+  margin-bottom: 2px;
+  color: #5780a2;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.active-profile-copy strong {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 16px;
+  line-height: 1.16;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-profile-copy > span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+.active-profile-chevron {
+  color: #6a849d;
+  font-size: 28px;
+  font-weight: 300;
+}
+
+/* Home now has only History and Settings in the secondary shortcut block. */
+.home-shortcuts {
+  grid-template-columns: 1fr !important;
+}
+
+.home-shortcuts > .shortcut-card {
+  grid-column: auto !important;
+  min-height: 84px;
+}
+
+@media (min-width: 520px) {
+  .home-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@supports not (display: grid) {
+  .home-shortcuts > .shortcut-card {
+    width: calc(100% - 10px) !important;
+  }
+
+  @media (min-width: 520px) {
+    .home-shortcuts > .shortcut-card {
+      width: calc(50% - 10px) !important;
+    }
+  }
+}
+
+/* Compact context shown on every exercise configuration screen. */
+.profile-context-strip {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 9px 12px;
+  border: 1px solid rgba(1, 156, 232, .18);
+  border-radius: 14px;
+  background: #edf8fe;
+}
+
+.profile-context-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+.profile-context-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.profile-context-strip small,
+.profile-context-strip strong {
+  display: block;
+}
+
+.profile-context-strip small {
+  color: #6f8398;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
+.profile-context-strip strong {
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-save-state {
+  color: #4f7998;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.profile-save-state.is-saving {
+  opacity: .64;
+}
+
+.profile-config-actions {
+  grid-template-columns: 1fr !important;
+}
+
+/* Profiles screen */
+.profiles-screen-v2 {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.profiles-topbar {
+  margin-bottom: 0 !important;
+}
+
+.profile-add-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  justify-self: end;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 7px 18px rgba(1, 156, 232, .22);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.profile-add-button:active {
+  transform: scale(.96);
+}
+
+.profiles-intro {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid rgba(1, 156, 232, .20);
+  border-radius: 19px;
+  background: linear-gradient(135deg, #edf8fe, #f5fbff);
+}
+
+.profiles-intro-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.profiles-intro small,
+.profiles-intro strong,
+.profiles-intro p {
+  display: block;
+  margin: 0;
+}
+
+.profiles-intro small {
+  color: #66829d;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.profiles-intro strong {
+  margin-top: 2px;
+  color: var(--navy);
+  font-size: 17px;
+}
+
+.profiles-intro p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.38;
+}
+
+.profiles-list {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-list-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 5px 17px rgba(3, 30, 84, .045);
+}
+
+.profile-list-card.is-active {
+  border-color: rgba(1, 156, 232, .48);
+  box-shadow: 0 7px 21px rgba(1, 156, 232, .09);
+}
+
+.profile-select-area {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 78px;
+  padding: 13px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--navy);
+  text-align: left;
+}
+
+.profile-select-area:active {
+  background: #f6faff;
+}
+
+.profile-avatar {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #e5f5fd, #dceffb);
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+}
+
+.profile-list-copy {
+  min-width: 0;
+}
+
+.profile-name-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.profile-name-line strong {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-name-line em {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(1, 156, 232, .12);
+  color: #0879b4;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.profile-list-copy > small {
+  display: block;
+  margin-top: 4px;
+  color: #7b8a9c;
+  font-size: 9.5px;
+}
+
+.profile-select-mark {
+  color: var(--blue);
+  font-size: 23px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.profile-card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid #edf1f6;
+}
+
+.profile-card-actions button {
+  min-height: 39px;
+  padding: 0 7px;
+  border: 0;
+  border-right: 1px solid #edf1f6;
+  background: #fbfdff;
+  color: #52708e;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.profile-card-actions button:last-child {
+  border-right: 0;
+  color: #b34b4b;
+}
+
+.profile-card-actions button:disabled {
+  color: #aeb9c5;
+}
+
+.profile-card-actions button:not(:disabled):active {
+  background: #edf6fc;
+}
+
+/* Create / rename / delete dialogs */
+.profile-modal-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.profile-modal-field > span {
+  color: #29405f;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.profile-modal-field input {
+  width: 100%;
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid #d7e4f1;
+  border-radius: 12px;
+  outline: 0;
+  color: #10233f;
+  caret-color: var(--blue);
+}
+
+.profile-modal-field input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(1, 156, 232, .10);
+}
+
+.profile-create-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.profile-create-options label {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid #dce7f2;
+  border-radius: 12px;
+  background: #f8fbfe;
+}
+
+.profile-create-options input {
+  margin: 3px 0 0;
+  accent-color: var(--blue);
+}
+
+.profile-create-options strong,
+.profile-create-options small {
+  display: block;
+}
+
+.profile-create-options strong {
+  color: var(--navy);
+  font-size: 11px;
+}
+
+.profile-create-options small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+/* Results and settings after removing presets. */
+.result-actions-three.profile-results-actions {
+  grid-template-columns: 1fr !important;
+}
+
+.result-actions-three.profile-results-actions .text-button {
+  grid-column: auto !important;
+}
+
+.result-profile-note {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgba(1, 156, 232, .18);
+  border-radius: 14px;
+  background: #edf8fe;
+  color: var(--navy);
+}
+
+.result-profile-note > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(1, 156, 232, .10);
+}
+
+.result-profile-note small,
+.result-profile-note strong {
+  display: block;
+}
+
+.result-profile-note small {
+  color: #71869b;
+  font-size: 8.5px;
+}
+
+.result-profile-note strong {
+  margin-top: 1px;
+  font-size: 12px;
+}
+
+.profiles-settings-clean .settings-action-row:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 360px) {
+  .active-profile-card {
+    grid-template-columns: 42px minmax(0, 1fr) 18px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .active-profile-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .profile-context-strip {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .profile-save-state {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .profile-card-actions button {
+    font-size: 8.8px;
+  }
+}
