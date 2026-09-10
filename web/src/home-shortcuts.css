@@ -1,0 +1,135 @@
+/* Home quick-access cards: responsive, balanced and readable. */
+
+.home-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.shortcut-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #edf4fb;
+  color: var(--navy);
+  text-align: left;
+  box-shadow: 0 5px 16px rgba(3, 30, 84, 0.045);
+}
+
+.shortcut-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.shortcut-card:active {
+  transform: scale(.985);
+}
+
+.shortcut-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 13px;
+  background: #e2f1fb;
+  color: var(--navy);
+}
+
+.shortcut-icon svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shortcut-card > span:last-child {
+  min-width: 0;
+}
+
+.shortcut-card strong,
+.shortcut-card small {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.shortcut-card strong {
+  color: var(--navy);
+  font-size: 15px;
+  line-height: 1.12;
+}
+
+.shortcut-card small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+/* Wider app viewports can comfortably use the original three-card row. */
+@media (min-width: 520px) {
+  .home-shortcuts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shortcut-card:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
+  .shortcut-card {
+    min-height: 96px;
+  }
+}
+
+/* Very narrow Android WebViews keep two columns but switch to a vertical card
+   composition so text never gets squeezed beside the icon. */
+@media (max-width: 380px) {
+  .home-shortcuts {
+    gap: 10px;
+  }
+
+  .shortcut-card {
+    grid-template-columns: 1fr;
+    grid-template-rows: 42px auto;
+    align-content: center;
+    justify-items: start;
+    min-height: 118px;
+    padding: 13px;
+  }
+
+  .shortcut-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .shortcut-card small {
+    font-size: 10px;
+  }
+}
+
+/* Fallback for old WebViews without CSS Grid. */
+@supports not (display: grid) {
+  .home-shortcuts {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    margin: -5px !important;
+  }
+
+  .home-shortcuts > .shortcut-card {
+    width: calc(50% - 10px) !important;
+    margin: 5px !important;
+  }
+
+  .home-shortcuts > .shortcut-card:last-child:nth-child(odd) {
+    width: calc(100% - 10px) !important;
+  }
+}
