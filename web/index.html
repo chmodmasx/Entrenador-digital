@@ -6,6 +6,54 @@
     <meta name="theme-color" content="#031E54" />
     <meta name="color-scheme" content="light dark" />
     <title>Entrenador Digital</title>
+    <link rel="stylesheet" href="/src/legacy.css" />
+    <script>
+      (function () {
+        /* Old Android WebViews may not implement Pointer Events. Translate the
+           earliest touch/mouse signal into the pointerdown event used by the
+           reaction controls, while suppressing the synthetic mouse duplicate. */
+        if (!('PointerEvent' in window)) {
+          var lastTouch = 0;
+          document.addEventListener('touchstart', function (event) {
+            lastTouch = Date.now();
+            if (event.target && event.target.dispatchEvent) {
+              event.target.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+            }
+          }, true);
+          document.addEventListener('mousedown', function (event) {
+            if (Date.now() - lastTouch < 800) return;
+            if (event.target && event.target.dispatchEvent) {
+              event.target.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+            }
+          }, true);
+        }
+
+        /* IDBObjectStore.getAll arrived after the first Android 5 WebViews.
+           This small compatibility shim provides the subset the history screen needs. */
+        if (window.IDBObjectStore && !IDBObjectStore.prototype.getAll) {
+          IDBObjectStore.prototype.getAll = function () {
+            var fakeRequest = { result: [], error: null, onsuccess: null, onerror: null };
+            var cursorRequest = this.openCursor();
+            cursorRequest.onsuccess = function (event) {
+              var cursor = event.target.result;
+              if (cursor) {
+                fakeRequest.result.push(cursor.value);
+                cursor.continue();
+              } else if (typeof fakeRequest.onsuccess === 'function') {
+                fakeRequest.onsuccess({ target: fakeRequest });
+              }
+            };
+            cursorRequest.onerror = function () {
+              fakeRequest.error = cursorRequest.error;
+              if (typeof fakeRequest.onerror === 'function') {
+                fakeRequest.onerror({ target: fakeRequest });
+              }
+            };
+            return fakeRequest;
+          };
+        }
+      }());
+    </script>
   </head>
   <body>
     <div id="app"></div>
