@@ -52,6 +52,24 @@
             return fakeRequest;
           };
         }
+
+        /* The Android shell watches the same body state as the web UI. This
+           keeps fullscreen and KEEP_SCREEN_ON native without coupling the
+           exercise engine to Android-specific code. */
+        document.addEventListener('DOMContentLoaded', function () {
+          function syncNativeTrainingMode() {
+            if (window.Android && typeof window.Android.setTrainingMode === 'function') {
+              window.Android.setTrainingMode(document.body.classList.contains('is-training'));
+            }
+          }
+          syncNativeTrainingMode();
+          if (window.MutationObserver) {
+            new MutationObserver(syncNativeTrainingMode).observe(document.body, {
+              attributes: true,
+              attributeFilter: ['class']
+            });
+          }
+        });
       }());
     </script>
   </head>
