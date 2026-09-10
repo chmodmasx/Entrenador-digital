@@ -53,8 +53,9 @@ interface RuntimeSession {
   clockTimer?: number;
 }
 
-const app = document.querySelector<HTMLDivElement>('#app');
-if (!app) throw new Error('No se encontró #app');
+const appElement = document.querySelector<HTMLDivElement>('#app');
+if (!appElement) throw new Error('No se encontró #app');
+const app: HTMLDivElement = appElement;
 
 const directions: Record<Direction, { symbol: string; label: string; rotation: number }> = {
   up: { symbol: '↑', label: 'Arriba', rotation: 0 },
@@ -221,7 +222,7 @@ function renderConfig(): void {
   bindSteppers();
   app.querySelector<HTMLFormElement>('#arrow-config')?.addEventListener('submit', (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
+    const form = event.currentTarget as HTMLFormElement;
     const selectedDirections = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="direction"]:checked')).map((el) => el.value as Direction);
     const repetitions = numberInput('repetitions');
     const waitMin = numberInput('waitMin');
