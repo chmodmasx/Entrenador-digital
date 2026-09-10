@@ -1,35 +1,212 @@
-/* NBS gift branding: only overrides the existing top Home card. */
+/* NBS hero rebuilt as a real UI component: vector logo + HTML text + CSS decoration. */
 .brand-hero {
   position: relative;
   overflow: hidden;
   width: 100%;
   min-height: 0 !important;
-  height: calc((100vw - 32px) * .51099);
-  max-height: 269px;
+  height: calc((100vw - 32px) * .505);
+  max-height: 260px;
   padding: 0 !important;
-  border: 0 !important;
+  border: 1px solid rgba(1, 156, 232, .22) !important;
   border-radius: 22px !important;
-  background-color: #031e54 !important;
-  background-image: url("./assets/nbs-hero-card.jpg") !important;
-  background-repeat: no-repeat !important;
-  background-position: center center !important;
-  background-size: cover !important;
+  background:
+    radial-gradient(circle at 82% 22%, rgba(1, 156, 232, .28) 0, rgba(1, 156, 232, .08) 28%, transparent 52%),
+    radial-gradient(circle at 20% 85%, rgba(1, 156, 232, .18) 0, transparent 36%),
+    linear-gradient(135deg, #020b1d 0%, #031e54 54%, #04152f 100%) !important;
   box-shadow: 0 16px 34px rgba(3, 30, 84, .18) !important;
+  isolation: isolate;
 }
 
-/* The approved NBS artwork already contains the logo and all hero copy. */
-.brand-hero > * {
-  display: none !important;
+.brand-hero::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  z-index: 0;
+  width: 72%;
+  height: 150%;
+  left: -28%;
+  bottom: -92%;
+  border: 3px solid rgba(1, 156, 232, .68);
+  border-radius: 50%;
+  transform: rotate(-13deg);
+  box-shadow: 0 0 20px rgba(1, 156, 232, .25);
+  pointer-events: none;
 }
 
-.brand-hero::before,
 .brand-hero::after {
+  content: "MENTE MÁS RÁPIDA\A UN MEJOR TÚ" !important;
+  white-space: pre;
+  display: block !important;
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  right: 16px;
+  width: 78px;
+  color: rgba(225, 245, 255, .72);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: .13em;
+  text-align: left;
+  pointer-events: none;
+}
+
+.brand-hero > * {
+  display: block !important;
+}
+
+.brand-row {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  z-index: 2;
+}
+
+.brand-mark {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  width: 67%;
+  height: 46%;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: url("./brand/nbs-logo.svg") left center / contain no-repeat !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  filter: drop-shadow(0 4px 8px rgba(1, 156, 232, .18));
+}
+
+.brand-row > div:last-child {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 50%;
+  z-index: 2;
+}
+
+.brand-row h1 {
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: clamp(24px, 7.1vw, 38px) !important;
+  font-weight: 800 !important;
+  line-height: .98 !important;
+  letter-spacing: -.035em !important;
+  font-style: italic;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .34);
+}
+
+.brand-row .eyebrow {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 1px;
+  margin: 0 !important;
+  color: rgba(255, 255, 255, .92) !important;
+  font-size: clamp(9px, 2.5vw, 13px) !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: .035em !important;
+  text-transform: none !important;
+}
+
+.hero-copy {
+  position: absolute !important;
+  z-index: 3;
+  left: 18px;
+  bottom: 13px;
+  right: 110px;
+  display: block !important;
+  margin: 0 !important;
+  padding-top: 10px;
+  border-top: 2px solid rgba(1, 156, 232, .78);
+  color: rgba(213, 229, 244, .72) !important;
+}
+
+.hero-copy::before {
+  content: "Concentración, velocidad y coordinación.";
+  display: block;
+  font-size: clamp(8px, 2.25vw, 11px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: .08em;
+}
+
+.hero-copy p {
   display: none !important;
-  content: none !important;
+}
+
+.speed-lines {
+  position: absolute !important;
+  z-index: 1;
+  inset: 0 !important;
+  display: block !important;
+  pointer-events: none;
+}
+
+.speed-lines span {
+  position: absolute;
+  display: block !important;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(1, 156, 232, .95), transparent);
+  transform: rotate(-12deg);
+  transform-origin: center;
+  box-shadow: 0 0 8px rgba(1, 156, 232, .45);
+}
+
+.speed-lines span:nth-child(1) {
+  width: 52%;
+  right: -8%;
+  bottom: 19%;
+}
+
+.speed-lines span:nth-child(2) {
+  width: 44%;
+  right: -2%;
+  bottom: 12%;
+  opacity: .62;
+}
+
+.speed-lines span:nth-child(3) {
+  width: 34%;
+  right: 4%;
+  bottom: 6%;
+  opacity: .35;
+}
+
+@media (max-width: 360px) {
+  .brand-hero::after {
+    right: 12px;
+    width: 66px;
+    font-size: 7px;
+  }
+
+  .brand-mark {
+    left: 13px;
+    top: 12px;
+    width: 69%;
+  }
+
+  .brand-row > div:last-child,
+  .hero-copy {
+    left: 14px;
+  }
+
+  .brand-row h1 {
+    font-size: 23px !important;
+  }
 }
 
 @media (max-width: 320px) {
   .brand-hero {
     border-radius: 18px !important;
+  }
+
+  .hero-copy {
+    right: 82px;
+  }
+
+  .brand-hero::after {
+    display: none !important;
   }
 }
