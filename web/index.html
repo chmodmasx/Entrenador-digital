@@ -17,21 +17,39 @@
     <link rel="stylesheet" href="/src/system-chrome.css" />
     <script>
       (function () {
-        /* Keep native fullscreen and KEEP_SCREEN_ON synchronized with the web
-           application's training state. The exercise engine itself stays web-only. */
         document.addEventListener('DOMContentLoaded', function () {
+          var app = document.getElementById('app');
+
+          /* Keep native fullscreen and KEEP_SCREEN_ON synchronized with the web
+             application's training state. The exercise engine itself stays web-only. */
           function syncNativeTrainingMode() {
             if (window.Android && typeof window.Android.setTrainingMode === 'function') {
               window.Android.setTrainingMode(document.body.classList.contains('is-training'));
             }
           }
 
+          /* The extended top gradient belongs only to Home. Internal screens keep
+             a flat light surface while the Android status-bar strip stays dark. */
+          function syncScreenChrome() {
+            var isHome = !!(app && app.querySelector('.home-screen'));
+            document.body.classList.toggle('is-home', isHome);
+          }
+
           syncNativeTrainingMode();
+          syncScreenChrome();
+
           if (window.MutationObserver) {
             new MutationObserver(syncNativeTrainingMode).observe(document.body, {
               attributes: true,
               attributeFilter: ['class']
             });
+
+            if (app) {
+              new MutationObserver(syncScreenChrome).observe(app, {
+                childList: true,
+                subtree: true
+              });
+            }
           }
         });
       }());
