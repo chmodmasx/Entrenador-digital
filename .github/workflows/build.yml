@@ -30,7 +30,18 @@ jobs:
 
       - name: Build web app
         working-directory: web
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+
+      - name: Upload web build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-log
+          path: web/build.log
+          if-no-files-found: ignore
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -46,7 +57,18 @@ jobs:
 
       - name: Build universal debug APK
         working-directory: android
-        run: gradle --no-daemon assembleDebug
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --no-daemon assembleDebug 2>&1 | tee android-build.log
+
+      - name: Upload Android build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-log
+          path: android/android-build.log
+          if-no-files-found: ignore
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
