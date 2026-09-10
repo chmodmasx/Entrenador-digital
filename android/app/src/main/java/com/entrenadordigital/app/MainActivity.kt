@@ -2,6 +2,7 @@ package com.entrenadordigital.app
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.os.Build
@@ -11,6 +12,8 @@ import android.os.Vibrator
 import android.view.View
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
+import android.webkit.JsResult
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -55,6 +58,31 @@ class MainActivity : Activity() {
                     request: WebResourceRequest
                 ): Boolean {
                     return request.url.host != "appassets.androidplatform.net"
+                }
+            }
+
+            // JavaScript confirm() dialogs are not useful in a WebView unless a
+            // WebChromeClient handles them. The training Stop/Back controls use
+            // confirm() before cancelling a running session, so handle that dialog
+            // explicitly instead of letting WebView silently cancel it.
+            webChromeClient = object : WebChromeClient() {
+                override fun onJsConfirm(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    result: JsResult?
+                ): Boolean {
+                    if (result == null) return false
+
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Detener entrenamiento")
+                        .setMessage(message ?: "¿Detener el entrenamiento?")
+                        .setPositiveButton("Detener") { _, _ -> result.confirm() }
+                        .setNegativeButton("Continuar") { _, _ -> result.cancel() }
+                        .setOnCancelListener { result.cancel() }
+                        .show()
+
+                    return true
                 }
             }
 
