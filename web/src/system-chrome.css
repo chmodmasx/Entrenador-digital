@@ -1,0 +1,42 @@
+/* System chrome integration.
+   Keeps Android's white status-bar icons readable while preserving the light app UI. */
+
+html {
+  background: #0d345d;
+}
+
+body:not(.is-training) {
+  background-color: #f3f7fc !important;
+  background-image:
+    radial-gradient(circle at 82% 34px, rgba(1, 156, 232, .16) 0, rgba(1, 156, 232, .06) 92px, transparent 170px),
+    linear-gradient(180deg,
+      #0d345d 0,
+      #174d79 30px,
+      #6f95b6 50px,
+      #b9cede 66px,
+      #e7eff7 92px,
+      #f3f7fc 132px,
+      #f3f7fc 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Training already owns a full dark surface, so don't layer the light-screen chrome gradient over it. */
+body.is-training {
+  background-image: none !important;
+}
+
+/* Small-screen tuning: keep the readable dark band but shorten the transition. */
+@media (max-width: 360px) {
+  body:not(.is-training) {
+    background-image:
+      linear-gradient(180deg,
+        #0d345d 0,
+        #174d79 29px,
+        #779bb9 47px,
+        #c2d5e4 63px,
+        #edf3f9 88px,
+        #f3f7fc 122px,
+        #f3f7fc 100%);
+  }
+}
