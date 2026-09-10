@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.JsResult
@@ -18,25 +19,27 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.widget.FrameLayout
 import android.window.OnBackInvokedDispatcher
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 
 class MainActivity : Activity() {
+    private lateinit var rootView: FrameLayout
     private lateinit var webView: WebView
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Match the native status bar to the dark-blue top band rendered by the
-        // web UI. Android 15+ may draw the WebView behind a transparent status
-        // bar; older versions still use this color directly.
-        window.statusBarColor = Color.rgb(13, 52, 93)
-        window.navigationBarColor = Color.rgb(3, 30, 84)
+        val statusBlue = Color.rgb(13, 52, 93)
+        val navigationBlue = Color.rgb(3, 30, 84)
 
-        // Keep status-bar icons light on devices that support switching icon
-        // appearance. The theme also declares windowLightStatusBar=false.
+        window.statusBarColor = statusBlue
+        window.navigationBarColor = navigationBlue
+
+        // Keep status-bar icons light. The theme also declares
+        // windowLightStatusBar=false for devices where the theme controls it.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
@@ -102,7 +105,49 @@ class MainActivity : Activity() {
             }
         }
 
-        setContentView(webView)
+        // Android 15+ enforces edge-to-edge for modern target SDKs. Instead of
+        // compensating individual web screens with CSS, keep the entire WebView
+        // inside the visible status/navigation bar insets. This prevents any
+        // scrolled card, header, modal or list from ever drawing under system UI.
+        // The surrounding native container supplies the dark blue surface behind
+        // the transparent system bars.
+        rootView = FrameLayout(this).apply {
+            setBackgroundColor(statusBlue)
+            addView(
+                webView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+        }
+
+        rootView.setOnApplyWindowInsetsListener { _, insets ->
+            val statusTop: Int
+            val navigationBottom: Int
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                statusTop = insets.getInsets(WindowInsets.Type.statusBars()).top
+                navigationBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            } else {
+                @Suppress("DEPRECATION")
+                statusTop = insets.systemWindowInsetTop
+                @Suppress("DEPRECATION")
+                navigationBottom = insets.systemWindowInsetBottom
+            }
+
+            val params = webView.layoutParams as FrameLayout.LayoutParams
+            if (params.topMargin != statusTop || params.bottomMargin != navigationBottom) {
+                params.topMargin = statusTop
+                params.bottomMargin = navigationBottom
+                webView.layoutParams = params
+            }
+
+            insets
+        }
+
+        setContentView(rootView)
+        rootView.requestApplyInsets()
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
 
         // targetSdk 36 uses the modern back dispatcher on Android 13+. An
@@ -173,6 +218,16 @@ class MainActivity : Activity() {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility =
+                    window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            }
+        }
+
+        if (::rootView.isInitialized) {
+            rootView.requestApplyInsets()
         }
     }
 
