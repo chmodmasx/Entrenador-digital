@@ -1,66 +1,52 @@
 /* System chrome integration.
-   Home gets the branded top fade. Internal light screens keep only a dark
-   status-bar band so Android's white system icons remain readable. */
+   Android owns status/navigation bar spacing natively. Web CSS only controls
+   the page surface: Home gets the branded fade; internal screens stay flat. */
 
 html {
-  background: #0d345d;
+  background: #f3f7fc;
 }
 
-/* Default light screens: dark only behind the Android status bar, then a
-   clean flat app background. The hard transition deliberately avoids tinting
-   page headings such as Flechas, Ajustes, Perfiles, etc. */
+/* Internal light screens remain completely flat. Native WindowInsets keep the
+   WebView below the status bar, so no artificial top band or extra padding is
+   required here. */
 body:not(.is-training):not(.is-home) {
-  background-color: #f3f7fc !important;
-  background-image: linear-gradient(180deg,
-    #0d345d 0,
-    #0d345d 31px,
-    #f3f7fc 31px,
-    #f3f7fc 100%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background: #f3f7fc !important;
+  background-image: none !important;
 }
 
-/* Home only: a soft blue transition visually connects Android's status bar
-   with the NBS hero while fading back into the normal light interface. */
+/* Home only: begin with the same dark blue used by Android's native status-bar
+   container so the transition looks continuous, then fade into the app surface. */
 body.is-home:not(.is-training) {
   background-color: #f3f7fc !important;
   background-image:
-    radial-gradient(circle at 82% 34px, rgba(1, 156, 232, .16) 0, rgba(1, 156, 232, .06) 92px, transparent 170px),
+    radial-gradient(circle at 82% 8px, rgba(1, 156, 232, .16) 0, rgba(1, 156, 232, .06) 92px, transparent 170px),
     linear-gradient(180deg,
       #0d345d 0,
-      #174d79 30px,
-      #6f95b6 50px,
-      #b9cede 66px,
-      #e7eff7 92px,
-      #f3f7fc 132px,
+      #174d79 18px,
+      #6f95b6 38px,
+      #b9cede 56px,
+      #e7eff7 82px,
+      #f3f7fc 120px,
       #f3f7fc 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
 }
 
-/* Training already owns a full dark surface. */
+/* Training owns a full dark surface and hides the system bars. */
 body.is-training {
   background-image: none !important;
 }
 
 @media (max-width: 360px) {
-  body:not(.is-training):not(.is-home) {
-    background-image: linear-gradient(180deg,
-      #0d345d 0,
-      #0d345d 29px,
-      #f3f7fc 29px,
-      #f3f7fc 100%);
-  }
-
   body.is-home:not(.is-training) {
     background-image:
       linear-gradient(180deg,
         #0d345d 0,
-        #174d79 29px,
-        #779bb9 47px,
-        #c2d5e4 63px,
-        #edf3f9 88px,
-        #f3f7fc 122px,
+        #174d79 17px,
+        #779bb9 35px,
+        #c2d5e4 52px,
+        #edf3f9 76px,
+        #f3f7fc 110px,
         #f3f7fc 100%);
   }
 }
