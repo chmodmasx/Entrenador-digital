@@ -3,12 +3,13 @@
 
 /*
  * Shared top bars
- * Keep a 44 px touch target, but make the visible back control smaller so it
- * does not compete with or collide optically with the page title.
+ * Keep a generous 44 px touch target while rendering the navigation affordance
+ * itself as a clean arrow. A persistent white circle made the control compete
+ * with the title and look much larger than the rest of the header.
  */
 .topbar {
   grid-template-columns: 44px minmax(0, 1fr) 44px !important;
-  column-gap: 10px !important;
+  column-gap: 12px !important;
   align-items: center !important;
 }
 
@@ -26,52 +27,39 @@
 
 .icon-button {
   position: relative !important;
-  isolation: isolate;
+  display: grid !important;
+  place-items: center !important;
   width: 44px !important;
   height: 44px !important;
   min-width: 44px !important;
   min-height: 44px !important;
   padding: 0 !important;
   border: 0 !important;
-  border-radius: 50% !important;
+  border-radius: 12px !important;
   background: transparent !important;
   box-shadow: none !important;
   color: #083167 !important;
-  font-size: 24px !important;
+  font-size: 25px !important;
   font-weight: 500 !important;
   line-height: 1 !important;
+  transition: background .14s ease, transform .14s ease;
 }
 
-.icon-button::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  left: 50%;
-  top: 50%;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(83, 115, 148, .11);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .78);
-  box-shadow: 0 3px 10px rgba(22, 52, 88, .035);
-  transform: translate(-50%, -50%);
-  transition: background .14s ease, box-shadow .14s ease, transform .14s ease;
-  pointer-events: none;
+/* No persistent decorative surface behind navigation arrows. */
+.icon-button::before,
+.icon-button::after {
+  content: none !important;
+  display: none !important;
 }
 
 .icon-button:active {
-  background: transparent !important;
-  transform: none !important;
-}
-
-.icon-button:active::before {
-  background: #eaf4fb;
-  box-shadow: 0 2px 7px rgba(22, 52, 88, .04);
-  transform: translate(-50%, -50%) scale(.95);
+  background: rgba(1, 156, 232, .09) !important;
+  transform: scale(.94) !important;
 }
 
 .icon-button:focus-visible {
-  outline-offset: 0 !important;
+  outline: 2px solid rgba(1, 156, 232, .32) !important;
+  outline-offset: -3px !important;
 }
 
 .topbar-spacer {
@@ -79,7 +67,8 @@
   height: 44px;
 }
 
-/* The add action keeps the same visual weight as the header system. */
+/* The add action remains deliberately more prominent because it is a primary
+   screen action, but its footprint matches the shared header grid. */
 .profiles-topbar .profile-add-button {
   width: 44px !important;
   height: 44px !important;
@@ -91,9 +80,9 @@
 
 /*
  * Branding selector isolation
- * nbs-brand.css historically styles .brand-mark for the Home hero. Settings
- * also uses that class for the small app mark, so restore the intended local
- * component here and prevent hero geometry leaking into the About card.
+ * nbs-brand.css styles .brand-mark for the Home hero. Settings also uses that
+ * class for the small app mark, so restore the intended local component here
+ * and prevent hero geometry leaking into the About card.
  */
 .about-card .about-brand {
   position: static !important;
@@ -133,12 +122,7 @@
 
 @media (max-width: 360px) {
   .topbar {
-    column-gap: 7px !important;
-  }
-
-  .icon-button::before {
-    width: 34px;
-    height: 34px;
+    column-gap: 9px !important;
   }
 
   .topbar h1 {
