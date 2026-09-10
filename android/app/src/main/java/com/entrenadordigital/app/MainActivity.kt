@@ -26,6 +26,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.widget.FrameLayout
+import android.widget.Toast
 import android.window.OnBackInvokedDispatcher
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
@@ -51,6 +52,7 @@ class MainActivity : Activity() {
     private var pendingPermissionUpdate: AvailableUpdate? = null
     private var pendingInstallerFile: File? = null
     private var downloadDialog: AlertDialog? = null
+    private var pendingBackupJson: String? = null
 
     private data class AvailableUpdate(
         val versionName: String,
@@ -70,8 +72,6 @@ class MainActivity : Activity() {
         window.statusBarColor = statusBlue
         window.navigationBarColor = navigationBlue
 
-        // Keep status-bar icons light. The theme also declares
-        // windowLightStatusBar=false for devices where the theme controls it.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
@@ -137,10 +137,6 @@ class MainActivity : Activity() {
             }
         }
 
-        // Android 15+ enforces edge-to-edge for modern target SDKs. Instead of
-        // compensating individual web screens with CSS, keep the entire WebView
-        // inside the visible status/navigation bar insets. This prevents any
-        // scrolled card, header, modal or list from ever drawing under system UI.
         rootView = FrameLayout(this).apply {
             setBackgroundColor(statusBlue)
             addView(
@@ -180,8 +176,6 @@ class MainActivity : Activity() {
         rootView.requestApplyInsets()
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
 
-        // Check once per app launch. The request runs completely off the UI
-        // thread and produces no visible state unless a newer release exists.
         rootView.postDelayed({
             if (!updateCheckScheduled) {
                 updateCheckScheduled = true
@@ -189,9 +183,6 @@ class MainActivity : Activity() {
             }
         }, UPDATE_CHECK_DELAY_MS)
 
-        // targetSdk 36 uses the modern back dispatcher on Android 13+. An
-        // Activity.onBackPressed() override alone is not a reliable interception
-        // point there, so register with the platform dispatcher as well.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerModernBackHandler()
         }
@@ -225,11 +216,112 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
-    /**
-     * Make the Android system Back action behave exactly like the visible back
-     * action in the current web screen. This deliberately does not call finish()
-     * when there is no in-app back target (for example on Home).
-     */
+    @Deprecated("Storage Access Framework result handling for Android 5+")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (resultCode != RESULT_OK) {
+            if (requestCode == REQUEST_SAVE_BACKUP) pendingBackupJson = null
+            return
+        }
+
+        val uri = data?.data ?: return
+        when (requestCode) {
+            REQUEST_SAVE_BACKUP -> {
+                val json = pendingBackupJson
+                pendingBackupJson = null
+                if (json == null) return
+
+                runCatching {
+                    contentResolver.openOutputStream(uri, "wt")?.bufferedWriter(Charsets.UTF_8)?.use { writer ->
+                        writer.write(json)
+                    } ?: throw IllegalStateException("No se pudo abrir el archivo de destino.")
+                }.onSuccess {
+                    Toast.makeText(this, "Copia de seguridad guardada", Toast.LENGTH_SHORT).show()
+                }.onFailure {
+                    showBackupError("No se pudo guardar la copia de seguridad.")
+                }
+            }
+
+            REQUEST_OPEN_BACKUP -> {
+                runCatching {
+                    val raw = contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { reader ->
+                        reader.readText()
+                    } ?: throw IllegalStateException("No se pudo abrir la copia seleccionada.")
+
+                    if (raw.length > MAX_BACKUP_CHARS) {
+                        throw IllegalStateException("La copia seleccionada es demasiado grande.")
+                    }
+                    raw
+                }.onSuccess { raw ->
+                    deliverBackupToWeb(raw)
+                }.onFailure {
+                    showBackupError("No se pudo leer la copia de seguridad seleccionada.")
+                }
+            }
+        }
+    }
+
+    private fun beginBackupSave(json: String, suggestedName: String) {
+        if (json.isBlank() || json.length > MAX_BACKUP_CHARS) {
+            showBackupError("No se pudo preparar la copia de seguridad.")
+            return
+        }
+
+        pendingBackupJson = json
+        val safeName = suggestedName
+            .replace(Regex("[^A-Za-z0-9._ -]"), "-")
+            .take(120)
+            .ifBlank { "Entrenador-Digital-backup.json" }
+
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, safeName)
+        }
+
+        runCatching {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_SAVE_BACKUP)
+        }.onFailure {
+            pendingBackupJson = null
+            showBackupError("Android no pudo abrir el selector para guardar el archivo.")
+        }
+    }
+
+    private fun beginBackupOpen() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "text/json", "text/plain"))
+        }
+
+        runCatching {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_OPEN_BACKUP)
+        }.onFailure {
+            showBackupError("Android no pudo abrir el selector de archivos.")
+        }
+    }
+
+    private fun deliverBackupToWeb(raw: String) {
+        if (!::webView.isInitialized) return
+        val quoted = JSONObject.quote(raw)
+        webView.evaluateJavascript(
+            "window.__ENTRENADOR_IMPORT_BACKUP && window.__ENTRENADOR_IMPORT_BACKUP($quoted);",
+            null
+        )
+    }
+
+    private fun showBackupError(message: String) {
+        if (isFinishing || (Build.VERSION.SDK_INT >= 17 && isDestroyed)) return
+        AlertDialog.Builder(this)
+            .setTitle("Copia de seguridad")
+            .setMessage(message)
+            .setPositiveButton("Aceptar", null)
+            .show()
+    }
+
     private fun dispatchBackToWeb() {
         if (!::webView.isInitialized) return
 
@@ -709,6 +801,16 @@ class MainActivity : Activity() {
         fun getAppVersion(): String = BuildConfig.VERSION_NAME
 
         @JavascriptInterface
+        fun saveBackup(json: String, suggestedName: String) {
+            activity.runOnUiThread { activity.beginBackupSave(json, suggestedName) }
+        }
+
+        @JavascriptInterface
+        fun openBackup() {
+            activity.runOnUiThread { activity.beginBackupOpen() }
+        }
+
+        @JavascriptInterface
         fun finishApp() {
             activity.runOnUiThread { activity.finish() }
         }
@@ -719,5 +821,8 @@ class MainActivity : Activity() {
             "https://api.github.com/repos/chmodmasx/Entrenador-digital/releases/latest"
         private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         private const val UPDATE_CHECK_DELAY_MS = 1_200L
+        private const val REQUEST_SAVE_BACKUP = 4101
+        private const val REQUEST_OPEN_BACKUP = 4102
+        private const val MAX_BACKUP_CHARS = 8_000_000
     }
 }

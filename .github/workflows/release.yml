@@ -1,12 +1,22 @@
 name: Release APK
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión a publicar (ej. 1.0.0)'
+        required: true
+        default: '1.0.0'
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -15,6 +25,65 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+
+          if [[ ! "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "La versión debe tener formato X.Y.Z" >&2
+            exit 1
+          fi
+
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
+
+          if (( MINOR > 999 || PATCH > 999 )); then
+            echo "Minor y patch deben ser menores o iguales a 999" >&2
+            exit 1
+          fi
+
+          VERSION_CODE=$((10#$MAJOR * 1000000 + 10#$MINOR * 1000 + 10#$PATCH))
+          if (( VERSION_CODE < 1 || VERSION_CODE > 2100000000 )); then
+            echo "versionCode fuera del rango válido de Android" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify signing secrets
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" || { echo 'Missing ANDROID_KEYSTORE_BASE64'; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo 'Missing ANDROID_KEYSTORE_PASSWORD'; exit 1; }
+          test -n "$KEY_ALIAS" || { echo 'Missing ANDROID_KEY_ALIAS'; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo 'Missing ANDROID_KEY_PASSWORD'; exit 1; }
+
+      - name: Restore release signing key
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/entrenador-digital.jks"
+          chmod 600 "$RUNNER_TEMP/entrenador-digital.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/entrenador-digital.jks" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -42,46 +111,61 @@ jobs:
           gradle-version: '9.5.0'
           cache-provider: basic
 
-      - name: Restore release signing key
-        env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          test -n "$KEYSTORE_B64" || { echo 'Missing ANDROID_KEYSTORE_BASE64'; exit 1; }
-          test -n "$KEYSTORE_PASSWORD" || { echo 'Missing ANDROID_KEYSTORE_PASSWORD'; exit 1; }
-          test -n "$KEY_ALIAS" || { echo 'Missing ANDROID_KEY_ALIAS'; exit 1; }
-          test -n "$KEY_PASSWORD" || { echo 'Missing ANDROID_KEY_PASSWORD'; exit 1; }
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/entrenador-digital.jks"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/entrenador-digital.jks" >> "$GITHUB_ENV"
-          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-
       - name: Build signed universal release APK
         working-directory: android
-        run: |
-          VERSION_NAME="${GITHUB_REF_NAME#v}"
-          gradle --no-daemon assembleRelease \
-            -PVERSION_NAME="$VERSION_NAME" \
-            -PVERSION_CODE="$GITHUB_RUN_NUMBER"
-
-      - name: Prepare release files
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          APK="Entrenador-digital-${GITHUB_REF_NAME}.apk"
-          cp android/app/build/outputs/apk/release/app-release.apk "$APK"
+          gradle --no-daemon :app:assembleRelease \
+            -PVERSION_NAME='${{ steps.version.outputs.version }}' \
+            -PVERSION_CODE='${{ steps.version.outputs.version_code }}'
+
+      - name: Prepare release files
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.version.outputs.version }}'
+          SOURCE='android/app/build/outputs/apk/release/app-release.apk'
+          APK="Entrenador-Digital-v${VERSION}-universal.apk"
+          test -s "$SOURCE"
+          cp "$SOURCE" "$APK"
           sha256sum "$APK" > "$APK.sha256"
-          echo "RELEASE_APK=$APK" >> "$GITHUB_ENV"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          echo "sha=$APK.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='${{ steps.assets.outputs.apk }}'
+          APKSIGNER="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Publish GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "$RELEASE_APK" \
-            "$RELEASE_APK.sha256" \
-            --title "Entrenador Digital $GITHUB_REF_NAME" \
-            --generate-notes
+          set -euo pipefail
+          TAG='${{ steps.version.outputs.tag }}'
+          VERSION='${{ steps.version.outputs.version }}'
+          APK='${{ steps.assets.outputs.apk }}'
+          SHA='${{ steps.assets.outputs.sha }}'
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" "$SHA" --clobber
+          else
+            gh release create "$TAG" "$APK" "$SHA" \
+              --target "$GITHUB_SHA" \
+              --title "Entrenador Digital $VERSION" \
+              --notes "Versión $VERSION de Entrenador Digital. APK universal firmado para instalación y actualizaciones automáticas."
+          fi
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/entrenador-digital.jks"
