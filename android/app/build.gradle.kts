@@ -1,9 +1,12 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
 }
 
 val appVersionName = providers.gradleProperty("VERSION_NAME").orElse("0.1.0")
 val appVersionCode = providers.gradleProperty("VERSION_CODE").map(String::toInt).orElse(1)
+val generatedBrandResDir = layout.buildDirectory.dir("generated/nbsBrand/res")
 
 val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
 val releaseKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
@@ -27,6 +30,8 @@ android {
         versionCode = appVersionCode.get()
         versionName = appVersionName.get()
     }
+
+    sourceSets.getByName("main").res.srcDir(generatedBrandResDir)
 
     buildFeatures {
         buildConfig = true
@@ -70,6 +75,27 @@ val syncWebAssets by tasks.registering(Copy::class) {
     into(layout.projectDirectory.dir("src/main/assets/www"))
 }
 
+// GitHub's text-only source writer stores the approved NBS launcher artwork as
+// base64. Decode it into a normal Android drawable before resource merging.
+val generateNbsBrandAssets by tasks.registering {
+    val encodedIcon = layout.projectDirectory.file("src/main/brand/nbs_app_icon.webp.b64")
+    val outputIcon = generatedBrandResDir.map { it.file("drawable-nodpi/ic_launcher_nbs.webp") }
+
+    inputs.file(encodedIcon)
+    outputs.file(outputIcon)
+
+    doLast {
+        val destination = outputIcon.get().asFile
+        destination.parentFile.mkdirs()
+        val encoded = encodedIcon.asFile.readText().filterNot { it.isWhitespace() }
+        destination.writeBytes(Base64.getDecoder().decode(encoded))
+    }
+}
+
 tasks.named("preBuild").configure {
-    dependsOn(syncWebAssets)
+    dependsOn(syncWebAssets, generateNbsBrandAssets)
+}
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Resources") }.configureEach {
+    dependsOn(generateNbsBrandAssets)
 }
