@@ -43,8 +43,9 @@ dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
 }
 
+// The web build is produced first (npm run build). Android then copies that
+// self-contained output into the APK assets before every Android build.
 val syncWebAssets by tasks.registering(Copy::class) {
-    dependsOn(":prepareWebAssets")
     from(rootProject.file("../web/dist"))
     into(layout.projectDirectory.dir("src/main/assets/www"))
 }
