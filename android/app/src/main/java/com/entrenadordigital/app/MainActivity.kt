@@ -1,6 +1,7 @@
 package com.entrenadordigital.app
 
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
@@ -17,6 +18,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.window.OnBackInvokedDispatcher
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 
@@ -61,10 +63,6 @@ class MainActivity : Activity() {
                 }
             }
 
-            // JavaScript confirm() dialogs are not useful in a WebView unless a
-            // WebChromeClient handles them. The training Stop/Back controls use
-            // confirm() before cancelling a running session, so handle that dialog
-            // explicitly instead of letting WebView silently cancel it.
             webChromeClient = object : WebChromeClient() {
                 override fun onJsConfirm(
                     view: WebView?,
@@ -75,10 +73,10 @@ class MainActivity : Activity() {
                     if (result == null) return false
 
                     AlertDialog.Builder(this@MainActivity)
-                        .setTitle("Detener entrenamiento")
-                        .setMessage(message ?: "¿Detener el entrenamiento?")
-                        .setPositiveButton("Detener") { _, _ -> result.confirm() }
-                        .setNegativeButton("Continuar") { _, _ -> result.cancel() }
+                        .setTitle("Confirmar")
+                        .setMessage(message ?: "¿Continuar?")
+                        .setPositiveButton("Aceptar") { _, _ -> result.confirm() }
+                        .setNegativeButton("Cancelar") { _, _ -> result.cancel() }
                         .setOnCancelListener { result.cancel() }
                         .show()
 
@@ -95,19 +93,51 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+
+        // targetSdk 36 uses the modern back dispatcher on Android 13+. An
+        // Activity.onBackPressed() override alone is not a reliable interception
+        // point there, so register with the platform dispatcher as well.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerModernBackHandler()
+        }
     }
 
-    @Deprecated("Android back is routed through the web application so active training can stop cleanly")
-    override fun onBackPressed() {
-        if (::webView.isInitialized) {
-            webView.evaluateJavascript(
-                "if (window.EntrenadorDigitalBack) { window.EntrenadorDigitalBack(); } else { window.history.back(); }",
-                null
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            super.onBackPressed()
+    /**
+     * Make the Android system Back action behave exactly like the visible back
+     * action in the current web screen. This deliberately does not call finish()
+     * when there is no in-app back target (for example on Home).
+     */
+    private fun dispatchBackToWeb() {
+        if (!::webView.isInitialized) return
+
+        webView.evaluateJavascript(
+            """
+            (function () {
+              var button = document.querySelector('button[data-action="back"]');
+              if (!button) button = document.querySelector('button[data-action="home"]');
+              if (button) {
+                button.click();
+                return 'handled';
+              }
+              return 'noop';
+            }());
+            """.trimIndent(),
+            null
+        )
+    }
+
+    @TargetApi(Build.VERSION_CODES.TIRAMISU)
+    private fun registerModernBackHandler() {
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_DEFAULT
+        ) {
+            dispatchBackToWeb()
         }
+    }
+
+    @Deprecated("Legacy Android back path; Android 13+ uses OnBackInvokedDispatcher")
+    override fun onBackPressed() {
+        dispatchBackToWeb()
     }
 
     override fun onDestroy() {
