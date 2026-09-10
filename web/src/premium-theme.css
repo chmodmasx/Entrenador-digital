@@ -1,0 +1,395 @@
+/* Visual polish layer inspired by soft athletic-tech UI.
+   This file changes appearance only: no layout, copy, navigation or behavior. */
+
+:root {
+  --bg: #f3f7fc;
+  --text: #102847;
+  --muted: #697d94;
+  --border: #dce7f1;
+  --radius-lg: 24px;
+  --radius-md: 20px;
+  --surface: #ffffff;
+  --surface-soft: #f7fbfe;
+  --surface-blue: #edf7fd;
+  --shadow: 0 12px 30px rgba(22, 52, 88, .075), 0 2px 7px rgba(22, 52, 88, .035);
+  --shadow-soft: 0 8px 22px rgba(22, 52, 88, .065), 0 1px 4px rgba(22, 52, 88, .03);
+  --shadow-raised: 0 16px 36px rgba(3, 30, 84, .11), 0 4px 10px rgba(3, 30, 84, .045);
+}
+
+body:not(.is-training) {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(1, 156, 232, .075), transparent 30%),
+    linear-gradient(180deg, #f5f8fc 0%, #f2f6fb 100%);
+}
+
+/* Common white surfaces */
+.exercise-card,
+.settings-card,
+.shortcut-card,
+.profile-list-card,
+.session-detail-card,
+.about-card,
+.stat-card,
+.preset-card,
+.app-modal {
+  border-color: rgba(93, 124, 157, .18) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.exercise-card,
+.settings-card,
+.profile-list-card,
+.session-detail-card,
+.about-card,
+.stat-card,
+.preset-card {
+  border-radius: 22px !important;
+}
+
+/* Soft highlighted surfaces */
+.active-profile-card,
+.profile-context-strip,
+.profiles-intro,
+.exercise-intro-card,
+.result-profile-note {
+  border-color: rgba(1, 156, 232, .17) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f3f9fd 100%) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.active-profile-card {
+  border-radius: 22px !important;
+}
+
+.profile-context-strip,
+.result-profile-note {
+  border-radius: 17px !important;
+}
+
+.profiles-intro,
+.exercise-intro-card {
+  border-radius: 21px !important;
+}
+
+/* Hero keeps its NBS design; only its elevation is harmonized with the new system. */
+.brand-hero {
+  box-shadow: 0 18px 42px rgba(3, 30, 84, .16), 0 4px 12px rgba(3, 30, 84, .055) !important;
+}
+
+/* Exercise cards */
+.exercise-card {
+  border-color: rgba(104, 132, 161, .16) !important;
+  box-shadow: 0 10px 26px rgba(22, 52, 88, .075), 0 2px 6px rgba(22, 52, 88, .03) !important;
+}
+
+.exercise-card:not(:disabled):active {
+  transform: scale(.985) !important;
+  box-shadow: 0 5px 14px rgba(22, 52, 88, .065) !important;
+}
+
+.exercise-card:not(:disabled):hover {
+  border-color: rgba(1, 156, 232, .28) !important;
+  box-shadow: 0 14px 30px rgba(22, 52, 88, .095), 0 3px 7px rgba(22, 52, 88, .035) !important;
+}
+
+.exercise-card strong {
+  color: #0b2850 !important;
+  font-weight: 760 !important;
+}
+
+.exercise-card small {
+  color: #6f8094 !important;
+}
+
+/* Quick access cards */
+.shortcut-card {
+  border-radius: 20px !important;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%) !important;
+  box-shadow: 0 9px 24px rgba(22, 52, 88, .07), 0 2px 6px rgba(22, 52, 88, .028) !important;
+}
+
+.shortcut-card:active {
+  transform: scale(.99) !important;
+  box-shadow: 0 5px 14px rgba(22, 52, 88, .06) !important;
+}
+
+.shortcut-icon,
+.active-profile-icon,
+.profile-context-icon,
+.profiles-intro-icon,
+.preset-symbol,
+.result-profile-note > span,
+.section-title > span {
+  border: 1px solid rgba(1, 156, 232, .08);
+  background: linear-gradient(145deg, #eff9fe 0%, #e3f2fb 100%) !important;
+  color: #063469 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 4px 12px rgba(3, 30, 84, .045);
+}
+
+.shortcut-icon {
+  border-radius: 14px !important;
+}
+
+/* Profile surfaces */
+.active-profile-card:active,
+.profile-select-area:active {
+  background: #f3f9fd !important;
+}
+
+.active-profile-copy small,
+.profile-context-strip small,
+.profiles-intro small,
+.result-profile-note small {
+  color: #6e849a !important;
+}
+
+.active-profile-copy strong,
+.profile-context-strip strong,
+.profiles-intro strong,
+.result-profile-note strong,
+.profile-name-line strong {
+  color: #082b58 !important;
+}
+
+.profile-avatar {
+  border: 1px solid rgba(1, 156, 232, .10);
+  background: linear-gradient(145deg, #eef8fe, #e2f1fb) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.profile-list-card.is-active {
+  border-color: rgba(1, 156, 232, .38) !important;
+  box-shadow: 0 11px 26px rgba(1, 156, 232, .09), 0 2px 6px rgba(22, 52, 88, .03) !important;
+}
+
+.profile-card-actions {
+  border-color: #eaf0f6 !important;
+}
+
+.profile-card-actions button {
+  background: #fbfdff !important;
+  border-color: #eaf0f6 !important;
+}
+
+/* Section cards and headings */
+.section-title > span {
+  border-radius: 11px !important;
+}
+
+.section-title h2,
+.topbar h1,
+.session-detail-card h2 {
+  color: #092c59 !important;
+}
+
+.section-title p,
+.topbar p {
+  color: #718298 !important;
+}
+
+.setting-row,
+.toggle-row,
+.settings-action-row,
+.profile-card-actions {
+  border-color: #eaf0f5 !important;
+}
+
+.setting-row > label,
+.toggle-row strong,
+.settings-action-row strong,
+.textarea-field > span,
+.profile-modal-field > span {
+  color: #294563 !important;
+}
+
+.toggle-row small,
+.settings-action-row small,
+.textarea-field small,
+.profile-create-options small {
+  color: #77899d !important;
+}
+
+/* Inputs and selection controls */
+.stepper,
+.textarea-field textarea,
+.profile-modal-field input,
+.color-option,
+.segmented-control,
+.profile-create-options label,
+.filter-chip {
+  border-color: #dce7f1 !important;
+  background: #f8fbfe !important;
+}
+
+.stepper {
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 3px 10px rgba(22, 52, 88, .035);
+}
+
+.stepper button {
+  background: #edf6fc !important;
+  color: #155b97 !important;
+}
+
+.stepper button:active,
+.stepper button.is-pressing {
+  background: #dceefa !important;
+}
+
+.stepper:focus-within,
+.textarea-field textarea:focus,
+.profile-modal-field input:focus {
+  border-color: rgba(1, 156, 232, .6) !important;
+  box-shadow: 0 0 0 3px rgba(1, 156, 232, .09), 0 5px 14px rgba(22, 52, 88, .04) !important;
+}
+
+.color-option {
+  border-radius: 14px !important;
+  box-shadow: 0 3px 10px rgba(22, 52, 88, .025);
+}
+
+.color-option.is-selected {
+  border-color: rgba(1, 156, 232, .34) !important;
+  background: #f1f9fe !important;
+  box-shadow: 0 5px 14px rgba(1, 156, 232, .055);
+}
+
+.color-swatch {
+  box-shadow: inset 0 1px rgba(255,255,255,.28), 0 3px 8px rgba(22,52,88,.08) !important;
+}
+
+.segmented-control {
+  border-radius: 15px !important;
+  padding: 4px !important;
+}
+
+.segmented-control span {
+  border-radius: 11px !important;
+}
+
+.segmented-control input:checked + span {
+  background: linear-gradient(135deg, #083167, #031e54) !important;
+  box-shadow: 0 6px 15px rgba(3, 30, 84, .16) !important;
+}
+
+.toggle-control i {
+  background: #d3dfeb !important;
+  box-shadow: inset 0 1px 2px rgba(3,30,84,.06);
+}
+
+.toggle-control i::after {
+  box-shadow: 0 3px 9px rgba(3, 30, 84, .18) !important;
+}
+
+.toggle-control input:checked + i {
+  background: linear-gradient(90deg, #019ce8, #13aae9) !important;
+}
+
+/* Primary actions */
+.primary-button,
+.start-button,
+.profile-add-button,
+.mini-primary {
+  border: 0 !important;
+  background: linear-gradient(135deg, #13acee 0%, #019ce8 54%, #078bd0 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(1, 156, 232, .22), inset 0 1px 0 rgba(255,255,255,.24) !important;
+}
+
+.secondary-button {
+  border-color: #d9e5ef !important;
+  background: #fff !important;
+  color: #123f6c !important;
+  box-shadow: 0 5px 14px rgba(22, 52, 88, .045) !important;
+}
+
+.primary-button:active,
+.start-button:active,
+.profile-add-button:active,
+.mini-primary:active {
+  transform: translateY(1px) scale(.99);
+  box-shadow: 0 5px 13px rgba(1, 156, 232, .18) !important;
+}
+
+/* Top navigation buttons stay functionally identical, but read as soft controls. */
+.icon-button {
+  border: 1px solid rgba(95, 124, 154, .10) !important;
+  background: rgba(255, 255, 255, .72) !important;
+  box-shadow: 0 4px 12px rgba(22, 52, 88, .035);
+}
+
+.icon-button:active {
+  background: #edf5fb !important;
+}
+
+/* History/results */
+.stat-card {
+  box-shadow: 0 8px 22px rgba(22, 52, 88, .065) !important;
+}
+
+.stat-card > span {
+  background: linear-gradient(145deg, #eef9fe, #e3f2fb) !important;
+  color: #07548b !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.session-detail-card {
+  box-shadow: var(--shadow) !important;
+}
+
+.filter-chip {
+  background: #fff !important;
+  box-shadow: 0 3px 10px rgba(22, 52, 88, .025);
+}
+
+.filter-chip.is-active {
+  border-color: #063469 !important;
+  background: #063469 !important;
+  color: #fff !important;
+  box-shadow: 0 5px 13px rgba(3, 30, 84, .12);
+}
+
+/* Modals */
+.modal-overlay {
+  background: rgba(3, 20, 46, .42) !important;
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.app-modal {
+  border: 1px solid rgba(255,255,255,.78) !important;
+  border-radius: 25px !important;
+  box-shadow: 0 24px 60px rgba(3, 30, 84, .24), 0 7px 18px rgba(3,30,84,.08) !important;
+}
+
+/* Fine typography and small decorative details */
+.home-motto,
+.training-motto {
+  color: #8a9aab !important;
+}
+
+.home-motto span,
+.training-motto span {
+  background: linear-gradient(90deg, rgba(1,156,232,.15), #019ce8, rgba(1,156,232,.15)) !important;
+}
+
+.about-card {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+@media (max-width: 380px) {
+  :root {
+    --radius-lg: 22px;
+    --radius-md: 18px;
+  }
+
+  .exercise-card,
+  .settings-card,
+  .profile-list-card,
+  .session-detail-card,
+  .about-card,
+  .stat-card {
+    border-radius: 20px !important;
+  }
+}
