@@ -2,6 +2,7 @@ export interface AndroidBridge {
   setTrainingMode?: (enabled: boolean) => void;
   vibrate?: (milliseconds: number) => void;
   getAppVersion?: () => string;
+  checkForUpdates?: () => void;
   saveBackup?: (json: string, suggestedName: string) => void;
   openBackup?: () => void;
   finishApp?: () => void;
@@ -41,5 +42,16 @@ export function getNativeAppVersion(): string | null {
     return nativeBridge()?.getAppVersion?.() ?? null;
   } catch {
     return null;
+  }
+}
+
+export function requestNativeUpdateCheck(): boolean {
+  try {
+    const bridge = nativeBridge();
+    if (!bridge?.checkForUpdates) return false;
+    bridge.checkForUpdates();
+    return true;
+  } catch {
+    return false;
   }
 }
