@@ -901,7 +901,7 @@ function startTraining(): void {
   if (settings.countdown) beginCountdown();
   else {
     if (runtime) runtime.activeStartedAt = performance.now();
-    if (isCognitiveExercise(selectedExercise)) cognitiveController?.start();
+    if (isCognitiveExercise(selectedExercise)) (cognitiveController as CognitiveController | null)?.start();
     else scheduleNextStimulus();
   }
 }
@@ -1021,7 +1021,7 @@ function beginCountdown(): void {
     countdown.textContent = '';
     countdown.hidden = true;
     runtime.activeStartedAt = performance.now();
-    if (isCognitiveExercise(selectedExercise)) cognitiveController?.start();
+    if (isCognitiveExercise(selectedExercise)) (cognitiveController as CognitiveController | null)?.start();
     else scheduleNextStimulus();
   };
 
@@ -1323,7 +1323,8 @@ function resultDetailValue(config: ExerciseConfig): string {
   if (config.kind === 'colors') return String(config.colors.length);
   if (config.kind === 'color-number') return `${config.colors.length} × ${config.maxNumber - config.minNumber + 1}`;
   if (config.kind === 'stroop') return config.instruction === 'ink' ? 'Color' : 'Palabra';
-  return String(config.words.length);
+  if (config.kind === 'words') return String(config.words.length);
+  return '—';
 }
 
 function specificResultDetails(config: ExerciseConfig): string {
@@ -1343,7 +1344,8 @@ function specificResultDetails(config: ExerciseConfig): string {
   if (config.kind === 'stroop') {
     return `<div><dt>Responder a</dt><dd>${config.instruction === 'ink' ? 'Color visible' : 'Palabra escrita'}</dd></div><div><dt>Coincidencias</dt><dd>${config.allowMatches ? 'Permitidas' : 'Evitadas'}</dd></div>`;
   }
-  return `<div><dt>Consignas</dt><dd>${config.words.join(', ')}</dd></div>`;
+  if (config.kind === 'words') return `<div><dt>Consignas</dt><dd>${config.words.join(', ')}</dd></div>`;
+  return '';
 }
 
 async function renderHistory(): Promise<void> {
@@ -1464,7 +1466,8 @@ function presetConfigSummary(config: ExerciseConfig): string {
   if (config.kind === 'colors') return `${config.colors.length} colores · ${base}`;
   if (config.kind === 'color-number') return `${config.colors.length} colores · números ${config.minNumber}–${config.maxNumber} · ${base}`;
   if (config.kind === 'stroop') return `${config.instruction === 'ink' ? 'Color visible' : 'Palabra escrita'} · ${base}`;
-  return `${config.words.length} palabras · ${base}`;
+  if (config.kind === 'words') return `${config.words.length} palabras · ${base}`;
+  return base;
 }
 
 function renderSettings(): void {
