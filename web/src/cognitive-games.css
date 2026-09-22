@@ -11,27 +11,42 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 18px;
+  min-height: 44px;
 }
 
 .exercise-carousel-dot {
-  width: 8px;
-  height: 8px;
+  position: relative;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 999px;
-  background: #c7d4e3;
+  border-radius: 14px;
+  background: transparent;
   box-shadow: none;
-  transition: width .18s ease, background .18s ease, transform .18s ease;
+  transition: transform .18s ease;
+  touch-action: manipulation;
 }
 
-.exercise-carousel-dot.is-active {
+.exercise-carousel-dot::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #c7d4e3;
+  transform: translate(-50%, -50%);
+  transition: width .18s ease, background .18s ease;
+}
+
+.exercise-carousel-dot.is-active::before {
   width: 22px;
   background: #019ce8;
 }
 
 .exercise-carousel-dot:active {
-  transform: scale(.92);
+  transform: scale(.94);
 }
 
 .exercise-carousel {
