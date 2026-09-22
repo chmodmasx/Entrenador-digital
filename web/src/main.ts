@@ -30,10 +30,12 @@ import {
   type StroopInstruction,
 } from './domain/exercises';
 import { validateBaseTrainingValues } from './domain/validation';
+import { DEFAULT_APP_SETTINGS, type AppSettings } from './domain/settings';
 import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
 import { exportBackup, requestBackupImport } from './backup';
 import { profileEnhanceCurrentScreen } from './profiles';
 import { mountHomeScreen } from './screens/home';
+import { mountSettingsScreen } from './screens/settings';
 import {
   SESSION_STORE,
   clearStore as dbClearStore,
@@ -87,13 +89,6 @@ interface WordsConfig extends BaseConfig {
 }
 
 type ExerciseConfig = ArrowsConfig | NumbersConfig | ColorsConfig | ColorNumberConfig | StroopConfig | WordsConfig | CognitiveConfig;
-
-interface AppSettings {
-  countdown: boolean;
-  sound: boolean;
-  vibration: boolean;
-  showProgress: boolean;
-}
 
 interface Stimulus {
   key: string;
@@ -234,12 +229,7 @@ const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
 };
 
 const SETTINGS_KEY = 'entrenador-digital-settings-v1';
-const defaultSettings: AppSettings = {
-  countdown: true,
-  sound: false,
-  vibration: false,
-  showProgress: true,
-};
+const defaultSettings: AppSettings = { ...DEFAULT_APP_SETTINGS };
 
 let settings = loadSettings();
 let screen: Screen = 'home';
@@ -1159,61 +1149,24 @@ function renderHistoryContent(sessions: StoredSession[], filter: ExerciseId | 'a
 }
 
 function renderSettings(): void {
-  const version = getAppVersion();
-  app.innerHTML = `
-    <main class="app-shell settings-screen">
-      <header class="topbar">
-        <button class="icon-button" data-action="back" aria-label="Volver">←</button>
-        <div><h1>Ajustes</h1><p>Personaliza la experiencia de entrenamiento</p></div>
-        <div class="topbar-spacer"></div>
-      </header>
-
-      <section class="settings-card settings-list-card">
-        <div class="section-title"><span>ϟ</span><div><h2>Durante el entrenamiento</h2><p>Se aplica a todos los modos</p></div></div>
-        ${toggleRow('setting-countdown', 'Cuenta regresiva', 'Mostrar 3, 2, 1 y “¡Ya!” antes de comenzar', settings.countdown)}
-        ${toggleRow('setting-progress', 'Mostrar progreso', 'Ver cantidad de estímulos completados', settings.showProgress)}
-        ${toggleRow('setting-sound', 'Sonido de señal', 'Emitir un tono breve cuando aparece el estímulo', settings.sound)}
-        ${toggleRow('setting-vibration', 'Vibración', 'Vibrar brevemente cuando aparece el estímulo', settings.vibration)}
-      </section>
-
-      <section class="settings-card settings-list-card" data-settings-data>
-        <div class="section-title"><span>⌁</span><div><h2>Datos locales</h2><p>Todo permanece guardado solamente en este dispositivo</p></div></div>
-        <button class="settings-action-row" data-action="export-backup"><span><strong>Exportar copia de seguridad</strong><small>Guarda perfiles, ajustes e historial en un archivo JSON</small></span><b>›</b></button>
-        <button class="settings-action-row" data-action="import-backup"><span><strong>Importar copia de seguridad</strong><small>Restaura datos guardados anteriormente</small></span><b>›</b></button>
-        <button class="settings-action-row" data-action="clear-history"><span><strong>Borrar historial</strong><small>Elimina todas las sesiones guardadas</small></span><b>›</b></button>
-      </section>
-
-      <section class="about-card">
-        <div class="brand-mark about-brand">ϟ</div>
-        <div><strong>Entrenador Digital</strong><span>Versión ${escapeHtml(version)}</span><small>Aplicación local y offline. Sin cuentas, nube ni telemetría.</small></div>
-      </section>
-    </main>`;
-
-  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', () => navigate('home'));
-
-  const settingsBindings: Array<[string, keyof AppSettings]> = [
-    ['setting-countdown', 'countdown'],
-    ['setting-progress', 'showProgress'],
-    ['setting-sound', 'sound'],
-    ['setting-vibration', 'vibration'],
-  ];
-  settingsBindings.forEach(([id, key]) => {
-    app.querySelector<HTMLInputElement>(`#${id}`)?.addEventListener('change', (event) => {
-      settings[key] = (event.currentTarget as HTMLInputElement).checked;
+  mountSettingsScreen(app, settings, getAppVersion(), {
+    onBack: () => navigate('home'),
+    onChange: (key, enabled) => {
+      settings[key] = enabled;
       persistSettings();
       if (key === 'sound' && settings.sound) prepareAudio();
-    });
+    },
+    onExportBackup: () => { void exportBackup(); },
+    onImportBackup: requestBackupImport,
+    onClearHistory: () => {
+      openConfirmModal(
+        'Borrar historial',
+        'Se eliminarán todas las sesiones guardadas en este dispositivo.',
+        'Borrar historial',
+        async () => { await clearSessions(); },
+      );
+    },
   });
-
-  app.querySelector<HTMLButtonElement>('[data-action="export-backup"]')?.addEventListener('click', () => void exportBackup());
-  app.querySelector<HTMLButtonElement>('[data-action="import-backup"]')?.addEventListener('click', requestBackupImport);
-
-  app.querySelector<HTMLButtonElement>('[data-action="clear-history"]')?.addEventListener('click', () => {
-    openConfirmModal('Borrar historial', 'Se eliminarán todas las sesiones guardadas en este dispositivo.', 'Borrar historial', async () => {
-      await clearSessions();
-    });
-  });
-
 }
 
 function openConfirmModal(title: string, message: string, confirmLabel: string, onConfirm: () => void | Promise<void>): void {
