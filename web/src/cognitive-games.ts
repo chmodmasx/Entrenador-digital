@@ -226,6 +226,9 @@ export function cognitiveCardVisual(id: CognitiveExerciseId): string {
 }
 
 export function cognitiveTrainingNote(id: CognitiveExerciseId): string {
+  if (id === 'flow') {
+    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Control por gestos</strong>Deslizá arriba, abajo, izquierda o derecha para responder. No hace falta tocar ningún botón.</div></div>';
+  }
   if (id === 'memory-matrix') {
     return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Juego interactivo</strong>Memoriza la matriz mientras esté iluminada y después toca las casillas que recuerdes.</div></div>';
   }
@@ -481,7 +484,7 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
     const stimulus = `${leafColor === 'green' ? 'Verde' : 'Naranja'} · apunta ${DIRECTION_LABELS[orientation]} · mueve ${DIRECTION_LABELS[movement]}`;
 
     root.innerHTML = `
-      <div class="cognitive-game flow-game">
+      <div class="cognitive-game flow-game" data-flow-swipe aria-label="Deslizá en la dirección correcta">
         <div class="flow-rule-bar"><span><i class="flow-rule-dot green"></i>VERDE = hoja</span><span><i class="flow-rule-dot orange"></i>NARANJA = movimiento</span></div>
         <div class="flow-field">
           <div class="flow-motion flow-motion-${movement}" style="--flow-duration:${Math.max(900, flowConfig.stimulusDurationMs)}ms">
@@ -489,17 +492,13 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
           </div>
         </div>
         <div class="cognitive-feedback" data-feedback></div>
-        <div class="direction-pad">
-          ${directionButton('up', '↑')}
-          ${directionButton('left', '←')}
-          ${directionButton('down', '↓')}
-          ${directionButton('right', '→')}
-        </div>
+        <div class="flow-swipe-hint" aria-hidden="true"><span>↕</span><strong>DESLIZÁ PARA RESPONDER</strong><span>↔</span></div>
       </div>`;
 
-    root.querySelectorAll<HTMLButtonElement>('[data-direction]').forEach((button) => {
-      button.addEventListener('click', () => answer(stimulus, button.dataset.direction === expected), { once: true });
-    });
+    const swipeSurface = root.querySelector<HTMLElement>('[data-flow-swipe]');
+    if (swipeSurface) {
+      bindDirectionalSwipe(swipeSurface, (direction) => answer(stimulus, direction === expected));
+    }
     armTimeout(stimulus);
   };
 
@@ -735,8 +734,45 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
   };
 }
 
-function directionButton(direction: CardinalDirection, symbol: string): string {
-  return `<button type="button" class="direction-answer direction-${direction}" data-direction="${direction}" aria-label="${DIRECTION_LABELS[direction]}">${symbol}</button>`;
+function bindDirectionalSwipe(
+  element: HTMLElement,
+  onSwipe: (direction: CardinalDirection) => void,
+): void {
+  const minimumDistance = 34;
+  let tracking = false;
+  let startX = 0;
+  let startY = 0;
+  let pointerId = -1;
+
+  element.addEventListener('pointerdown', (event) => {
+    if (!event.isPrimary) return;
+    tracking = true;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    element.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  element.addEventListener('pointerup', (event) => {
+    if (!tracking || event.pointerId !== pointerId) return;
+    tracking = false;
+
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.hypot(deltaX, deltaY) < minimumDistance) return;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      onSwipe(deltaX > 0 ? 'right' : 'left');
+    } else {
+      onSwipe(deltaY > 0 ? 'down' : 'up');
+    }
+  });
+
+  element.addEventListener('pointercancel', () => {
+    tracking = false;
+    pointerId = -1;
+  });
 }
 
 function leafSvg(direction: CardinalDirection, color: string): string {
