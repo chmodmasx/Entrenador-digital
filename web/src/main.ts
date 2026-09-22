@@ -17,7 +17,9 @@ import { timingPolicy } from './training-timing';
 import { bindSteppers, parseLocaleNumber, renderStepper } from './components/stepper';
 import {
   COLOR_IDS,
+  COLOR_META,
   DIRECTION_IDS,
+  DIRECTION_META,
   EXERCISE_IDS,
   EXERCISE_META,
   type CognitiveExerciseId,
@@ -41,6 +43,7 @@ import { profileEnhanceCurrentScreen } from './profiles';
 import { mountHomeScreen } from './screens/home';
 import { mountSettingsScreen } from './screens/settings';
 import { mountHistoryScreen } from './screens/history';
+import { createNonRepeatingStimulus, type Stimulus } from './training/passive-stimulus';
 import {
   SESSION_STORE,
   clearStore as dbClearStore,
@@ -50,12 +53,6 @@ import {
 
 
 type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'settings';
-
-interface Stimulus {
-  key: string;
-  label: string;
-  html: string;
-}
 
 interface TrialResult {
   stimulus: string;
@@ -104,28 +101,9 @@ const appElement = document.querySelector<HTMLDivElement>('#app');
 if (!appElement) throw new Error('No se encontró #app');
 const app: HTMLDivElement = appElement;
 
-const directions: Record<Direction, { symbol: string; label: string; rotation: number }> = {
-  up: { symbol: '↑', label: 'Arriba', rotation: 0 },
-  'up-right': { symbol: '↗', label: 'Arriba derecha', rotation: 45 },
-  right: { symbol: '→', label: 'Derecha', rotation: 90 },
-  'down-right': { symbol: '↘', label: 'Abajo derecha', rotation: 135 },
-  down: { symbol: '↓', label: 'Abajo', rotation: 180 },
-  'down-left': { symbol: '↙', label: 'Abajo izquierda', rotation: 225 },
-  left: { symbol: '←', label: 'Izquierda', rotation: 270 },
-  'up-left': { symbol: '↖', label: 'Arriba izquierda', rotation: 315 },
-};
-
+const directions = DIRECTION_META;
 const directionOrder: Direction[] = [...DIRECTION_IDS];
-
-const colors: Record<ColorId, { label: string; hex: string }> = {
-  blue: { label: 'Azul', hex: '#019CE8' },
-  red: { label: 'Rojo', hex: '#E44B4B' },
-  green: { label: 'Verde', hex: '#22A86A' },
-  yellow: { label: 'Amarillo', hex: '#F4C542' },
-  orange: { label: 'Naranja', hex: '#F28A2E' },
-  violet: { label: 'Violeta', hex: '#8A5CF6' },
-};
-
+const colors = COLOR_META;
 const colorOrder: ColorId[] = [...COLOR_IDS];
 
 const exerciseMeta = EXERCISE_META;
@@ -154,16 +132,6 @@ function loadSettings(): AppSettings {
 
 function persistSettings(): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-function arrowSvg(direction: Direction, className = ''): string {
-  const rotation = directions[direction].rotation;
-  return `
-    <svg class="${className}" viewBox="0 0 120 120" aria-hidden="true">
-      <g transform="rotate(${rotation} 60 60)">
-        <path d="M60 8 105 55H78v57H42V55H15L60 8Z" fill="currentColor" />
-      </g>
-    </svg>`;
 }
 
 function navigate(next: Screen): void {
@@ -709,79 +677,6 @@ function showStimulus(): void {
   });
 }
 
-function createNonRepeatingStimulus(config: ExerciseConfig, previousKey: string | null): Stimulus {
-  let stimulus = createStimulus(config);
-  let attempts = 0;
-  while (stimulus.key === previousKey && attempts < 6) {
-    stimulus = createStimulus(config);
-    attempts += 1;
-  }
-  return stimulus;
-}
-
-function createStimulus(config: ExerciseConfig): Stimulus {
-  if (config.kind === 'arrows') {
-    const direction = randomItem(config.directions);
-    return {
-      key: direction,
-      label: directions[direction].label,
-      html: arrowSvg(direction, 'stimulus-svg'),
-    };
-  }
-
-  if (config.kind === 'numbers') {
-    const value = randomInteger(config.minNumber, config.maxNumber);
-    return {
-      key: `n-${value}`,
-      label: String(value),
-      html: `<span class="stimulus-number-text">${value}</span>`,
-    };
-  }
-
-  if (config.kind === 'colors') {
-    const color = randomItem(config.colors);
-    return {
-      key: `c-${color}`,
-      label: colors[color].label,
-      html: `<span class="stimulus-color-disc" style="--stimulus-color:${colors[color].hex}" aria-label="${colors[color].label}"></span>`,
-    };
-  }
-
-  if (config.kind === 'color-number') {
-    const value = randomInteger(config.minNumber, config.maxNumber);
-    const color = randomItem(config.colors);
-    return {
-      key: `cn-${color}-${value}`,
-      label: `${colors[color].label} ${value}`,
-      html: `<span class="stimulus-colored-number" style="--stimulus-color:${colors[color].hex}">${value}</span>`,
-    };
-  }
-
-  if (config.kind === 'stroop') {
-    const wordColor = randomItem(config.colors);
-    let inkColor = randomItem(config.colors);
-    if (!config.allowMatches && config.colors.length > 1) {
-      while (inkColor === wordColor) inkColor = randomItem(config.colors);
-    }
-    return {
-      key: `s-${wordColor}-${inkColor}`,
-      label: `${colors[wordColor].label} / ${colors[inkColor].label}`,
-      html: `<span class="stimulus-stroop-word" style="--stimulus-color:${colors[inkColor].hex}">${escapeHtml(colors[wordColor].label.toLocaleUpperCase('es'))}</span>`,
-    };
-  }
-
-  if (config.kind === 'words') {
-    const word = randomItem(config.words);
-    return {
-      key: `w-${word}`,
-      label: word,
-      html: `<span class="stimulus-word-text">${escapeHtml(word)}</span>`,
-    };
-  }
-
-  throw new Error(`El juego ${config.kind} usa su propio motor interactivo.`);
-}
-
 function updateTrainingProgress(): void {
   if (!runtime) return;
   const total = configs[selectedExercise].repetitions;
@@ -1100,14 +995,6 @@ function signalCue(): void {
   } catch {
     // Sound is optional and must never interrupt training.
   }
-}
-
-function randomItem<T>(items: T[]): T {
-  return items[Math.floor(Math.random() * items.length)] as T;
-}
-
-function randomInteger(min: number, max: number): number {
-  return Math.floor(min + Math.random() * (max - min + 1));
 }
 
 function randomBetween(min: number, max: number): number {
