@@ -210,7 +210,13 @@ button:disabled {
 }
 
 .exercise-card-wrap .exercise-card small {
-  padding-right: 38px;
+  min-height: 30px;
+  padding-left: 4px;
+  padding-right: 58px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .exercise-quick-start {
@@ -261,16 +267,19 @@ button:disabled {
 
 .exercise-card strong,
 .exercise-card small {
-  display: block;
+  width: 100%;
+  text-align: left;
 }
 
 .exercise-card strong {
+  display: block;
+  padding: 0 4px;
   font-size: 17px;
   line-height: 1.2;
 }
 
 .exercise-card small {
-  margin-top: 4px;
+  margin-top: 5px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
