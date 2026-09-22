@@ -401,14 +401,33 @@ function renderHome(): void {
         <div class="speed-lines" aria-hidden="true"><span></span><span></span><span></span></div>
       </section>
 
-      <section class="exercise-grid" aria-label="Ejercicios">
-        ${exerciseCard('arrows', '<span class="exercise-arrow">➜</span>')}
-        ${exerciseCard('numbers', '<span class="exercise-numbers">1·2·3</span>')}
-        ${exerciseCard('colors', '<span class="color-dots"><i></i><i></i><i></i></span>')}
-        ${exerciseCard('color-number', '<span class="mixed-icon"><b>7</b><i></i><i></i></span>')}
-        ${exerciseCard('stroop', '<span class="letter-blocks"><b>A</b><b>B</b></span>')}
-        ${exerciseCard('words', '<span class="word-icon">≡</span>')}
-      </section>
+      <div class="exercise-carousel-shell">
+        <div class="exercise-carousel-dots" aria-label="Páginas de ejercicios">
+          <button type="button" class="exercise-carousel-dot is-active" data-carousel-page="0" aria-label="Página 1" aria-current="true"></button>
+          <button type="button" class="exercise-carousel-dot" data-carousel-page="1" aria-label="Página 2"></button>
+          <button type="button" class="exercise-carousel-dot" data-carousel-page="2" aria-label="Página 3"></button>
+        </div>
+        <div class="exercise-carousel" id="exercise-carousel">
+          <section class="exercise-grid exercise-page" data-exercise-page="0" aria-label="Ejercicios, página 1">
+            ${exerciseCard('arrows', '<span class="exercise-arrow">➜</span>')}
+            ${exerciseCard('numbers', '<span class="exercise-numbers">1·2·3</span>')}
+            ${exerciseCard('colors', '<span class="color-dots"><i></i><i></i><i></i></span>')}
+            ${exerciseCard('color-number', '<span class="mixed-icon"><b>7</b><i></i><i></i></span>')}
+          </section>
+          <section class="exercise-grid exercise-page" data-exercise-page="1" aria-label="Ejercicios, página 2">
+            ${exerciseCard('stroop', '<span class="letter-blocks"><b>A</b><b>B</b></span>')}
+            ${exerciseCard('words', '<span class="word-icon">≡</span>')}
+            ${exerciseCard('flow', cognitiveCardVisual('flow'))}
+            ${exerciseCard('memory-match', cognitiveCardVisual('memory-match'))}
+          </section>
+          <section class="exercise-grid exercise-page" data-exercise-page="2" aria-label="Ejercicios, página 3">
+            ${exerciseCard('memory-matrix', cognitiveCardVisual('memory-matrix'))}
+            ${exerciseCard('spatial-match', cognitiveCardVisual('spatial-match'))}
+            ${exerciseCard('star-search', cognitiveCardVisual('star-search'))}
+            ${exerciseCard('rule-shift', cognitiveCardVisual('rule-shift'))}
+          </section>
+        </div>
+      </div>
 
       <nav class="home-shortcuts" aria-label="Accesos rápidos">
         <button class="shortcut-card" data-action="history">
@@ -434,6 +453,7 @@ function renderHome(): void {
       navigate('config');
     });
   });
+  bindExerciseCarousel();
   app.querySelector<HTMLButtonElement>('[data-action="history"]')?.addEventListener('click', () => navigate('history'));
   app.querySelector<HTMLButtonElement>('[data-action="presets"]')?.addEventListener('click', () => navigate('presets'));
   app.querySelector<HTMLButtonElement>('[data-action="settings"]')?.addEventListener('click', () => navigate('settings'));
@@ -447,6 +467,40 @@ function exerciseCard(id: ExerciseId, visual: string): string {
       <strong>${meta.title}</strong>
       <small>${meta.subtitle}</small>
     </button>`;
+}
+
+function bindExerciseCarousel(): void {
+  const carousel = app.querySelector<HTMLDivElement>('#exercise-carousel');
+  if (!carousel) return;
+  const pages = Array.from(carousel.querySelectorAll<HTMLElement>('[data-exercise-page]'));
+  const dots = Array.from(app.querySelectorAll<HTMLButtonElement>('[data-carousel-page]'));
+  let frame = 0;
+
+  const setActive = (index: number) => {
+    const activeIndex = Math.max(0, Math.min(pages.length - 1, index));
+    dots.forEach((dot, dotIndex) => {
+      const active = dotIndex === activeIndex;
+      dot.classList.toggle('is-active', active);
+      if (active) dot.setAttribute('aria-current', 'true');
+      else dot.removeAttribute('aria-current');
+    });
+  };
+
+  carousel.addEventListener('scroll', () => {
+    if (frame) cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      const width = Math.max(1, carousel.clientWidth);
+      setActive(Math.round(carousel.scrollLeft / width));
+    });
+  }, { passive: true });
+
+  dots.forEach((dot) => {
+    dot.addEventListener('click', () => {
+      const index = Number(dot.dataset.carouselPage ?? 0);
+      carousel.scrollTo({ left: index * carousel.clientWidth, behavior: 'smooth' });
+      setActive(index);
+    });
+  });
 }
 
 function renderConfig(): void {
@@ -470,10 +524,12 @@ function renderConfig(): void {
         ${sharedConfigSections(config)}
         ${specificConfigSection(config)}
 
-        <div class="training-mode-note">
-          <span>i</span>
-          <div><strong>Entrenamiento físico</strong>La app muestra las señales automáticamente. La respuesta se realiza fuera de la pantalla, durante el ejercicio real.</div>
-        </div>
+        ${isCognitiveExercise(config.kind)
+          ? cognitiveTrainingNote(config.kind)
+          : `<div class="training-mode-note">
+              <span>i</span>
+              <div><strong>Entrenamiento físico</strong>La app muestra las señales automáticamente. La respuesta se realiza fuera de la pantalla, durante el ejercicio real.</div>
+            </div>`}
 
         <p class="form-error" id="form-error" role="alert"></p>
         <div class="config-actions">
@@ -507,21 +563,29 @@ function renderConfig(): void {
 }
 
 function sharedConfigSections(config: ExerciseConfig): string {
+  const cognitive = isCognitiveExercise(config.kind);
+  const countUnit = cognitive ? 'rondas' : 'señales';
+  const waitTitle = cognitive ? 'Pausa entre rondas' : 'Aparición';
+  const waitSubtitle = cognitive ? 'Ajusta el intervalo antes de la siguiente ronda' : 'Evita que el ritmo sea predecible';
+  const durationLabel = config.kind === 'memory-matrix'
+    ? 'Tiempo para memorizar'
+    : cognitive ? 'Tiempo máximo de respuesta' : 'Duración visible';
+
   return `
     <section class="settings-card">
-      <div class="section-title"><span>◷</span><div><h2>Sesión</h2><p>Define cuántas señales aparecerán</p></div></div>
-      ${stepper('repetitions', 'Cantidad de estímulos', config.repetitions, 'señales', 2, 200, 1)}
+      <div class="section-title"><span>◷</span><div><h2>Sesión</h2><p>Define cuántas ${countUnit} tendrá el entrenamiento</p></div></div>
+      ${stepper('repetitions', cognitive ? 'Cantidad de rondas' : 'Cantidad de estímulos', config.repetitions, countUnit, 2, 200, 1)}
     </section>
 
     <section class="settings-card">
-      <div class="section-title"><span>◴</span><div><h2>Aparición</h2><p>Evita que el ritmo sea predecible</p></div></div>
-      ${stepper('waitMin', 'Espera mínima', config.waitMinMs / 1000, 's', 0.2, 15, 0.1)}
-      ${stepper('waitMax', 'Espera máxima', config.waitMaxMs / 1000, 's', 0.3, 20, 0.1)}
+      <div class="section-title"><span>◴</span><div><h2>${waitTitle}</h2><p>${waitSubtitle}</p></div></div>
+      ${stepper('waitMin', 'Espera mínima', config.waitMinMs / 1000, 's', 0.1, 15, 0.1)}
+      ${stepper('waitMax', 'Espera máxima', config.waitMaxMs / 1000, 's', 0.2, 20, 0.1)}
     </section>
 
     <section class="settings-card">
-      <div class="section-title"><span>ϟ</span><div><h2>Estímulo</h2><p>Controla cuánto tiempo permanece visible</p></div></div>
-      ${stepper('stimulusDuration', 'Duración visible', config.stimulusDurationMs / 1000, 's', 0.2, 8, 0.1)}
+      <div class="section-title"><span>ϟ</span><div><h2>${cognitive ? 'Ronda' : 'Estímulo'}</h2><p>${cognitive ? 'Controla el tiempo disponible en cada desafío' : 'Controla cuánto tiempo permanece visible'}</p></div></div>
+      ${stepper('stimulusDuration', durationLabel, config.stimulusDurationMs / 1000, 's', 0.2, 12, 0.1)}
     </section>`;
 }
 
@@ -578,15 +642,19 @@ function specificConfigSection(config: ExerciseConfig): string {
       </section>`;
   }
 
-  return `
-    <section class="settings-card">
-      <div class="section-title"><span>ABC</span><div><h2>Palabras</h2><p>Escribe una consigna por línea</p></div></div>
-      <label class="textarea-field" for="wordList">
-        <span>Lista de palabras</span>
-        <textarea id="wordList" name="wordList" rows="7" maxlength="500">${escapeHtml(config.words.join('\n'))}</textarea>
-        <small>Mínimo 2 palabras. Se mostrarán en mayúsculas para mejorar la lectura a distancia.</small>
-      </label>
-    </section>`;
+  if (config.kind === 'words') {
+    return `
+      <section class="settings-card">
+        <div class="section-title"><span>ABC</span><div><h2>Palabras</h2><p>Escribe una consigna por línea</p></div></div>
+        <label class="textarea-field" for="wordList">
+          <span>Lista de palabras</span>
+          <textarea id="wordList" name="wordList" rows="7" maxlength="500">${escapeHtml(config.words.join('\n'))}</textarea>
+          <small>Mínimo 2 palabras. Se mostrarán en mayúsculas para mejorar la lectura a distancia.</small>
+        </label>
+      </section>`;
+  }
+
+  return cognitiveConfigSection(config);
 }
 
 function colorSelectionSection(selected: ColorId[], title: string, subtitle: string): string {
@@ -776,6 +844,12 @@ function readAndValidateConfig(form: HTMLFormElement): ExerciseConfig | null {
     const instruction = (form.querySelector<HTMLInputElement>('input[name="stroopInstruction"]:checked')?.value ?? 'ink') as StroopInstruction;
     const allowMatches = form.querySelector<HTMLInputElement>('#allowMatches')?.checked ?? false;
     return { kind: 'stroop', ...base, colors: selected, instruction, allowMatches };
+  }
+
+  if (isCognitiveExercise(selectedExercise)) {
+    const result = readCognitiveConfig(selectedExercise, form, base);
+    if (!result.config) return showConfigError(result.error ?? 'Revisa la configuración del juego.');
+    return result.config;
   }
 
   const rawWords = form.querySelector<HTMLTextAreaElement>('#wordList')?.value ?? '';
