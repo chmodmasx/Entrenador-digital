@@ -199,48 +199,10 @@ button:disabled {
   opacity: .62;
 }
 
-.exercise-card-wrap {
-  position: relative;
-  min-width: 0;
-}
-
-.exercise-card-wrap > .exercise-card {
+.exercise-card {
   width: 100%;
   height: 100%;
-}
-
-.exercise-card-wrap .exercise-card small {
-  min-height: 30px;
-  padding-left: 4px;
-  padding-right: 58px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.exercise-quick-start {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 2;
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(1, 156, 232, .28);
-  border-radius: 14px;
-  background: #eef8fe;
-  color: var(--blue);
-  font-size: 15px;
-  box-shadow: 0 5px 14px rgba(3,30,84,.08);
-  touch-action: manipulation;
-}
-
-.exercise-quick-start:active {
-  transform: scale(.96);
-  background: #dff2fd;
+  text-align: left;
 }
 
 .coming-soon {
@@ -267,6 +229,7 @@ button:disabled {
 
 .exercise-card strong,
 .exercise-card small {
+  display: block;
   width: 100%;
   text-align: left;
 }
