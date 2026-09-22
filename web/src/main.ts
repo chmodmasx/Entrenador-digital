@@ -884,6 +884,8 @@ function uniqueWords(raw: string): string[] {
 }
 
 function startTraining(): void {
+  cognitiveController?.stop();
+  cognitiveController = null;
   clearRuntimeTimers();
   runtime = {
     createdAt: performance.now(),
@@ -899,11 +901,16 @@ function startTraining(): void {
   if (settings.countdown) beginCountdown();
   else {
     if (runtime) runtime.activeStartedAt = performance.now();
-    scheduleNextStimulus();
+    if (isCognitiveExercise(selectedExercise)) cognitiveController?.start();
+    else scheduleNextStimulus();
   }
 }
 
 function renderTraining(): void {
+  if (isCognitiveExercise(selectedExercise)) {
+    renderCognitiveTraining(selectedExercise);
+    return;
+  }
   const meta = exerciseMeta[selectedExercise];
   const progressHidden = settings.showProgress ? '' : ' training-progress-hidden';
 
@@ -935,8 +942,62 @@ function renderTraining(): void {
   startElapsedClock();
 }
 
+function renderCognitiveTraining(exercise: CognitiveExerciseId): void {
+  const meta = exerciseMeta[exercise];
+  const config = configs[exercise] as CognitiveConfig;
+  const progressHidden = settings.showProgress ? '' : ' training-progress-hidden';
+
+  app.innerHTML = `
+    <main class="training-screen training-screen-cognitive">
+      <header class="training-header">
+        <button class="training-exit" data-action="back" aria-label="Detener y volver">←</button>
+        <div class="training-heading"><strong>${meta.title}</strong><span>${cognitiveTrainingSubtitle(exercise, config)}</span></div>
+        <button class="training-stop" data-action="stop">Detener</button>
+      </header>
+
+      <div class="training-progress${progressHidden}" aria-hidden="true"><span id="progress-fill"></span></div>
+      <div class="training-meta${progressHidden}"><span>Rondas completadas</span><strong id="trial-counter">0 / ${config.repetitions}</strong></div>
+
+      <section class="training-stage cognitive-training-stage">
+        <div class="cognitive-stage">
+          <div class="countdown" id="countdown" ${settings.countdown ? '' : 'hidden'}>${settings.countdown ? '3' : ''}</div>
+          <div class="cognitive-game-root" id="cognitive-game-root"></div>
+        </div>
+      </section>
+    </main>`;
+
+  const root = app.querySelector<HTMLElement>('#cognitive-game-root');
+  if (!root) return;
+
+  cognitiveController = mountCognitiveGame({
+    root,
+    exercise,
+    config,
+    onSignal: signalCue,
+    onTrial: (trial) => {
+      if (!runtime) return;
+      const activeStartedAt = runtime.activeStartedAt ?? trial.startedAt;
+      runtime.trials.push({
+        stimulus: trial.stimulus,
+        shownAtMs: Math.max(0, trial.startedAt - activeStartedAt),
+        visibleForMs: trial.responseMs,
+        correct: trial.correct,
+        responseMs: trial.responseMs,
+      });
+      updateTrainingProgress();
+    },
+    onComplete: () => { void finishTraining(); },
+  });
+
+  const stop = () => stopTraining();
+  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', stop);
+  app.querySelector<HTMLButtonElement>('[data-action="stop"]')?.addEventListener('click', stop);
+  startElapsedClock();
+}
+
 function trainingSubtitle(): string {
   const config = configs[selectedExercise];
+  if (isCognitiveExercise(selectedExercise)) return cognitiveTrainingSubtitle(selectedExercise, config as CognitiveConfig);
   if (config.kind === 'stroop') return config.instruction === 'ink' ? 'Consigna: color visible' : 'Consigna: palabra escrita';
   return 'Sesión en curso';
 }
@@ -960,7 +1021,8 @@ function beginCountdown(): void {
     countdown.textContent = '';
     countdown.hidden = true;
     runtime.activeStartedAt = performance.now();
-    scheduleNextStimulus();
+    if (isCognitiveExercise(selectedExercise)) cognitiveController?.start();
+    else scheduleNextStimulus();
   };
 
   advance();
@@ -1076,12 +1138,16 @@ function createStimulus(config: ExerciseConfig): Stimulus {
     };
   }
 
-  const word = randomItem(config.words);
-  return {
-    key: `w-${word}`,
-    label: word,
-    html: `<span class="stimulus-word-text">${escapeHtml(word)}</span>`,
-  };
+  if (config.kind === 'words') {
+    const word = randomItem(config.words);
+    return {
+      key: `w-${word}`,
+      label: word,
+      html: `<span class="stimulus-word-text">${escapeHtml(word)}</span>`,
+    };
+  }
+
+  throw new Error(`El juego ${config.kind} usa su propio motor interactivo.`);
 }
 
 function updateTrainingProgress(): void {
@@ -1107,6 +1173,8 @@ function startElapsedClock(): void {
 }
 
 function stopTraining(): void {
+  cognitiveController?.stop();
+  cognitiveController = null;
   clearRuntimeTimers();
   runtime = null;
   navigate('config');
@@ -1121,10 +1189,20 @@ async function finishTraining(): Promise<void> {
   if (!runtime || runtime.phase === 'done') return;
   runtime.phase = 'done';
   clearRuntimeTimers();
+  cognitiveController?.stop();
+  cognitiveController = null;
 
   const config = cloneConfig(configs[selectedExercise]);
   const activeStartedAt = runtime.activeStartedAt ?? runtime.createdAt;
   const durationMs = Math.max(0, performance.now() - activeStartedAt);
+  const scoredTrials = runtime.trials.filter((trial) => typeof trial.correct === 'boolean');
+  const correctTrials = scoredTrials.filter((trial) => trial.correct).length;
+  const responseSamples = scoredTrials
+    .map((trial) => trial.responseMs)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const averageResponseMs = responseSamples.length
+    ? responseSamples.reduce((sum, value) => sum + value, 0) / responseSamples.length
+    : undefined;
 
   lastSession = {
     schemaVersion: 3,
@@ -1139,6 +1217,12 @@ async function finishTraining(): Promise<void> {
       planned: config.repetitions,
       durationMs,
       stimulusDurationMs: config.stimulusDurationMs,
+      ...(scoredTrials.length ? {
+        scored: scoredTrials.length,
+        correct: correctTrials,
+        accuracy: correctTrials / scoredTrials.length,
+        averageResponseMs,
+      } : {}),
     },
   };
 
@@ -1171,16 +1255,13 @@ function renderResults(): void {
       </section>
 
       <section class="stats-grid">
-        ${statCard('Estímulos', `${summary.completed} / ${summary.planned}`, meta.symbol)}
-        ${statCard('Duración', formatDuration(summary.durationMs), '◷')}
-        ${statCard('Señal visible', formatSeconds(summary.stimulusDurationMs), 'ϟ')}
-        ${statCard(resultDetailLabel(session.config), resultDetailValue(session.config), '✣')}
+        ${resultStats(session)}
       </section>
 
       <section class="session-detail-card">
         <h2>Configuración utilizada</h2>
         <dl class="session-detail-list">
-          <div><dt>Espera entre señales</dt><dd>${formatSeconds(session.config.waitMinMs)} – ${formatSeconds(session.config.waitMaxMs)}</dd></div>
+          <div><dt>${isCognitiveExercise(session.exercise) ? 'Pausa entre rondas' : 'Espera entre señales'}</dt><dd>${formatSeconds(session.config.waitMinMs)} – ${formatSeconds(session.config.waitMaxMs)}</dd></div>
           ${specificResultDetails(session.config)}
         </dl>
       </section>
@@ -1202,11 +1283,31 @@ function renderResults(): void {
   app.querySelector<HTMLButtonElement>('[data-action="save-preset"]')?.addEventListener('click', () => openPresetNameModal(session.config));
 }
 
+function resultStats(session: StoredSession): string {
+  const summary = session.summary;
+  if (summary.scored && summary.scored > 0) {
+    const accuracy = Math.round((summary.accuracy ?? 0) * 100);
+    return [
+      statCard('Rondas', `${summary.completed} / ${summary.planned}`, exerciseMeta[session.exercise].symbol),
+      statCard('Aciertos', `${summary.correct ?? 0} / ${summary.scored}`, '✓'),
+      statCard('Precisión', `${accuracy}%`, '◎'),
+      statCard('Respuesta media', formatMilliseconds(summary.averageResponseMs ?? 0), '◷'),
+    ].join('');
+  }
+  return [
+    statCard('Estímulos', `${summary.completed} / ${summary.planned}`, exerciseMeta[session.exercise].symbol),
+    statCard('Duración', formatDuration(summary.durationMs), '◷'),
+    statCard('Señal visible', formatSeconds(summary.stimulusDurationMs), 'ϟ'),
+    statCard(resultDetailLabel(session.config), resultDetailValue(session.config), '✣'),
+  ].join('');
+}
+
 function statCard(label: string, value: string, symbol: string): string {
   return `<div class="stat-card"><span>${symbol}</span><div><small>${label}</small><strong>${value}</strong></div></div>`;
 }
 
 function resultDetailLabel(config: ExerciseConfig): string {
+  if (isCognitiveExercise(config.kind)) return cognitiveResultDetailLabel(config as CognitiveConfig);
   if (config.kind === 'arrows') return 'Direcciones';
   if (config.kind === 'numbers') return 'Rango';
   if (config.kind === 'colors') return 'Colores';
@@ -1216,6 +1317,7 @@ function resultDetailLabel(config: ExerciseConfig): string {
 }
 
 function resultDetailValue(config: ExerciseConfig): string {
+  if (isCognitiveExercise(config.kind)) return cognitiveResultDetailValue(config as CognitiveConfig);
   if (config.kind === 'arrows') return String(config.directions.length);
   if (config.kind === 'numbers') return `${config.minNumber}–${config.maxNumber}`;
   if (config.kind === 'colors') return String(config.colors.length);
@@ -1225,6 +1327,7 @@ function resultDetailValue(config: ExerciseConfig): string {
 }
 
 function specificResultDetails(config: ExerciseConfig): string {
+  if (isCognitiveExercise(config.kind)) return cognitiveResultDetails(config as CognitiveConfig);
   if (config.kind === 'arrows') {
     return `<div><dt>Direcciones activas</dt><dd>${config.directions.map((direction) => directions[direction].symbol).join(' ')}</dd></div>`;
   }
@@ -1289,7 +1392,7 @@ function renderHistoryContent(sessions: StoredSession[], filter: ExerciseId | 'a
     return `<article class="history-card">
       <div class="history-symbol history-symbol-${session.exercise}">${meta.symbol}</div>
       <div class="history-copy"><strong>${meta.title}</strong><span>${date.toLocaleDateString('es-AR')} · ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span></div>
-      <div class="history-score"><strong>${session.summary.completed} estímulos</strong><span>${formatDuration(session.summary.durationMs)}</span></div>
+      <div class="history-score"><strong>${session.summary.scored ? `${Math.round((session.summary.accuracy ?? 0) * 100)}% aciertos` : `${session.summary.completed} estímulos`}</strong><span>${formatDuration(session.summary.durationMs)}</span></div>
     </article>`;
   }).join('');
 }
@@ -1354,6 +1457,7 @@ async function renderPresets(): Promise<void> {
 }
 
 function presetConfigSummary(config: ExerciseConfig): string {
+  if (isCognitiveExercise(config.kind)) return cognitivePresetSummary(config as CognitiveConfig);
   const base = `${formatSeconds(config.waitMinMs)}–${formatSeconds(config.waitMaxMs)} de espera · ${formatSeconds(config.stimulusDurationMs)} visible`;
   if (config.kind === 'arrows') return `${config.directions.length} direcciones · ${base}`;
   if (config.kind === 'numbers') return `${config.minNumber}–${config.maxNumber} · ${base}`;
@@ -1568,12 +1672,17 @@ function formatSeconds(milliseconds: number): string {
   return `${value} s`;
 }
 
+function formatMilliseconds(milliseconds: number): string {
+  if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+  return `${(milliseconds / 1000).toFixed(2).replace('.', ',')} s`;
+}
+
 function createId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function exerciseIds(): ExerciseId[] {
-  return ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words'];
+  return ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words', ...COGNITIVE_IDS];
 }
 
 function escapeHtml(value: string): string {
