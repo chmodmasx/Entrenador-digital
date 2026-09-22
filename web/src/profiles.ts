@@ -1,4 +1,4 @@
-export {};
+import { sanitizeTimingSeconds, timingPolicy } from './training-timing';
 
 type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words' | 'flow' | 'memory-match' | 'memory-matrix' | 'spatial-match' | 'star-search' | 'rule-shift';
 type DirectionId = 'up' | 'up-right' | 'right' | 'down-right' | 'down' | 'down-left' | 'left' | 'up-left';
@@ -141,49 +141,58 @@ if (app) {
   window.setTimeout(profileEnhanceScreen, 0);
 }
 
+function profileTimingDefaults(kind: ExerciseId): Pick<BaseSnapshot, 'waitMin' | 'waitMax' | 'stimulusDuration'> {
+  const policy = timingPolicy(kind);
+  return {
+    waitMin: policy.defaultWaitMin,
+    waitMax: policy.defaultWaitMax,
+    stimulusDuration: policy.defaultDuration,
+  };
+}
+
 function profileDefaults(): SnapshotMap {
   return {
     arrows: {
-      kind: 'arrows', repetitions: 20, waitMin: 0.7, waitMax: 2.2, stimulusDuration: 0.9,
+      kind: 'arrows', repetitions: 20, ...profileTimingDefaults('arrows'),
       directions: [...allDirections],
     },
     numbers: {
-      kind: 'numbers', repetitions: 20, waitMin: 0.7, waitMax: 2.2, stimulusDuration: 0.9,
+      kind: 'numbers', repetitions: 20, ...profileTimingDefaults('numbers'),
       minNumber: 1, maxNumber: 9,
     },
     colors: {
-      kind: 'colors', repetitions: 20, waitMin: 0.7, waitMax: 2.2, stimulusDuration: 0.9,
+      kind: 'colors', repetitions: 20, ...profileTimingDefaults('colors'),
       colors: [...allColors],
     },
     'color-number': {
-      kind: 'color-number', repetitions: 20, waitMin: 0.7, waitMax: 2.2, stimulusDuration: 0.9,
+      kind: 'color-number', repetitions: 20, ...profileTimingDefaults('color-number'),
       minNumber: 1, maxNumber: 9, colors: [...allColors],
     },
     stroop: {
-      kind: 'stroop', repetitions: 20, waitMin: 0.85, waitMax: 2.4, stimulusDuration: 1.1,
+      kind: 'stroop', repetitions: 20, ...profileTimingDefaults('stroop'),
       colors: [...allColors], instruction: 'ink', allowMatches: false,
     },
     words: {
-      kind: 'words', repetitions: 20, waitMin: 0.8, waitMax: 2.3, stimulusDuration: 1.1,
+      kind: 'words', repetitions: 20, ...profileTimingDefaults('words'),
       words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
     },
     flow: {
-      kind: 'flow', repetitions: 20, waitMin: 0.3, waitMax: 0.7, stimulusDuration: 2.8,
+      kind: 'flow', repetitions: 20, ...profileTimingDefaults('flow'),
     },
     'memory-match': {
-      kind: 'memory-match', repetitions: 24, waitMin: 0.25, waitMax: 0.55, stimulusDuration: 2.8, nBack: 2,
+      kind: 'memory-match', repetitions: 24, ...profileTimingDefaults('memory-match'), nBack: 2,
     },
     'memory-matrix': {
-      kind: 'memory-matrix', repetitions: 12, waitMin: 0.35, waitMax: 0.7, stimulusDuration: 1.2, gridSize: 4, memoryCells: 5,
+      kind: 'memory-matrix', repetitions: 12, ...profileTimingDefaults('memory-matrix'), gridSize: 4, memoryCells: 5,
     },
     'spatial-match': {
-      kind: 'spatial-match', repetitions: 20, waitMin: 0.25, waitMax: 0.55, stimulusDuration: 2.6, itemCount: 4,
+      kind: 'spatial-match', repetitions: 20, ...profileTimingDefaults('spatial-match'), itemCount: 4,
     },
     'star-search': {
-      kind: 'star-search', repetitions: 12, waitMin: 0.35, waitMax: 0.7, stimulusDuration: 6, pairCount: 4,
+      kind: 'star-search', repetitions: 12, ...profileTimingDefaults('star-search'), pairCount: 4,
     },
     'rule-shift': {
-      kind: 'rule-shift', repetitions: 20, waitMin: 0.25, waitMax: 0.55, stimulusDuration: 3.2, optionCount: 3,
+      kind: 'rule-shift', repetitions: 20, ...profileTimingDefaults('rule-shift'), optionCount: 3,
     },
   };
 }
@@ -261,7 +270,23 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
 
 function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: ExerciseSnapshot | undefined, fallback: T): T {
   if (!candidate || candidate.kind !== fallback.kind) return JSON.parse(JSON.stringify(fallback)) as T;
-  return { ...JSON.parse(JSON.stringify(fallback)), ...candidate } as T;
+
+  const merged = { ...JSON.parse(JSON.stringify(fallback)), ...candidate } as T;
+  const timing = sanitizeTimingSeconds(
+    merged.kind,
+    Number(merged.waitMin),
+    Number(merged.waitMax),
+    Number(merged.stimulusDuration),
+  );
+
+  merged.waitMin = timing.waitMin;
+  merged.waitMax = timing.waitMax;
+  merged.stimulusDuration = timing.stimulusDuration;
+  merged.repetitions = Number.isFinite(merged.repetitions)
+    ? Math.min(200, Math.max(2, Math.round(merged.repetitions)))
+    : fallback.repetitions;
+
+  return merged;
 }
 
 function profileEnsureState(): void {

@@ -20,6 +20,7 @@ import {
   type CognitiveController,
   type CognitiveExerciseId,
 } from './cognitive-games';
+import { timingPolicy } from './training-timing';
 
 type Direction =
   | 'up'
@@ -233,38 +234,39 @@ const exerciseMeta: Record<ExerciseId, ExerciseMeta> = {
   ...cognitiveMeta,
 };
 
+function defaultTiming(kind: ExerciseId): Pick<BaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
+  const policy = timingPolicy(kind);
+  return {
+    waitMinMs: Math.round(policy.defaultWaitMin * 1000),
+    waitMaxMs: Math.round(policy.defaultWaitMax * 1000),
+    stimulusDurationMs: Math.round(policy.defaultDuration * 1000),
+  };
+}
+
 const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
   arrows: {
     kind: 'arrows',
     repetitions: 20,
-    waitMinMs: 700,
-    waitMaxMs: 2200,
-    stimulusDurationMs: 900,
+    ...defaultTiming('arrows'),
     directions: [...directionOrder],
   },
   numbers: {
     kind: 'numbers',
     repetitions: 20,
-    waitMinMs: 700,
-    waitMaxMs: 2200,
-    stimulusDurationMs: 900,
+    ...defaultTiming('numbers'),
     minNumber: 1,
     maxNumber: 9,
   },
   colors: {
     kind: 'colors',
     repetitions: 20,
-    waitMinMs: 700,
-    waitMaxMs: 2200,
-    stimulusDurationMs: 900,
+    ...defaultTiming('colors'),
     colors: [...colorOrder],
   },
   'color-number': {
     kind: 'color-number',
     repetitions: 20,
-    waitMinMs: 700,
-    waitMaxMs: 2200,
-    stimulusDurationMs: 900,
+    ...defaultTiming('color-number'),
     minNumber: 1,
     maxNumber: 9,
     colors: [...colorOrder],
@@ -272,9 +274,7 @@ const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
   stroop: {
     kind: 'stroop',
     repetitions: 20,
-    waitMinMs: 850,
-    waitMaxMs: 2400,
-    stimulusDurationMs: 1100,
+    ...defaultTiming('stroop'),
     colors: [...colorOrder],
     instruction: 'ink',
     allowMatches: false,
@@ -282,9 +282,7 @@ const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
   words: {
     kind: 'words',
     repetitions: 20,
-    waitMinMs: 800,
-    waitMaxMs: 2300,
-    stimulusDurationMs: 1100,
+    ...defaultTiming('words'),
     words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
   },
   flow: cognitiveDefaults.flow,
@@ -582,7 +580,8 @@ function renderConfig(): void {
 
 function sharedConfigSections(config: ExerciseConfig): string {
   const cognitive = isCognitiveExercise(config.kind);
-  const randomizedPause = !cognitive || config.kind === 'flow';
+  const policy = timingPolicy(config.kind);
+  const randomizedPause = policy.pauseMode === 'random';
   const countUnit = cognitive ? 'rondas' : 'señales';
   const pauseValue = Math.round(((config.waitMinMs + config.waitMaxMs) / 2000) * 10) / 10;
   const durationLabel = config.kind === 'memory-matrix'
@@ -598,13 +597,13 @@ function sharedConfigSections(config: ExerciseConfig): string {
     ? `
       <section class="settings-card">
         <div class="section-title"><span>◴</span><div><h2>${cognitive ? 'Pausa entre rondas' : 'Aparición'}</h2><p>${cognitive ? 'Varía el inicio para que el ritmo no sea predecible' : 'Evita que el ritmo sea predecible'}</p></div></div>
-        ${stepper('waitMin', 'Espera mínima', config.waitMinMs / 1000, 's', 0.1, 15, 0.1)}
-        ${stepper('waitMax', 'Espera máxima', config.waitMaxMs / 1000, 's', 0.2, 20, 0.1)}
+        ${stepper('waitMin', 'Espera mínima', config.waitMinMs / 1000, 's', policy.pauseMin, policy.pauseMax - 0.1, 0.1)}
+        ${stepper('waitMax', 'Espera máxima', config.waitMaxMs / 1000, 's', policy.pauseMin + 0.1, policy.pauseMax, 0.1)}
       </section>`
     : `
       <section class="settings-card">
         <div class="section-title"><span>◴</span><div><h2>Pausa entre rondas</h2><p>Tiempo fijo antes de comenzar la siguiente ronda</p></div></div>
-        ${stepper('roundPause', 'Duración de la pausa', pauseValue, 's', 0.1, 10, 0.1)}
+        ${stepper('roundPause', 'Duración de la pausa', pauseValue, 's', policy.pauseMin, policy.pauseMax, 0.1)}
       </section>`;
 
   return `
@@ -617,7 +616,7 @@ function sharedConfigSections(config: ExerciseConfig): string {
 
     <section class="settings-card">
       <div class="section-title"><span>ϟ</span><div><h2>${cognitive ? 'Ronda' : 'Estímulo'}</h2><p>${durationSubtitle}</p></div></div>
-      ${stepper('stimulusDuration', durationLabel, config.stimulusDurationMs / 1000, 's', 0.2, 12, 0.1)}
+      ${stepper('stimulusDuration', durationLabel, config.stimulusDurationMs / 1000, 's', policy.durationMin, policy.durationMax, 0.1)}
     </section>`;
 }
 
@@ -822,17 +821,22 @@ function readBaseConfig(): BaseConfig | null {
   const repetitions = numberInput('repetitions');
   const roundPauseInput = app.querySelector<HTMLInputElement>('#roundPause');
   const stimulusDuration = numberInput('stimulusDuration');
+  const policy = timingPolicy(selectedExercise);
 
   if (!Number.isFinite(repetitions) || repetitions < 2) {
     return showConfigError(isCognitiveExercise(selectedExercise)
       ? 'La sesión debe tener al menos 2 rondas.'
       : 'La sesión debe tener al menos 2 estímulos.');
   }
-  if (!Number.isFinite(stimulusDuration) || stimulusDuration <= 0) return showConfigError('El tiempo debe ser mayor que cero.');
+  if (!Number.isFinite(stimulusDuration) || stimulusDuration < policy.durationMin || stimulusDuration > policy.durationMax) {
+    return showConfigError(`El tiempo debe estar entre ${policy.durationMin} y ${policy.durationMax} s.`);
+  }
 
   if (roundPauseInput) {
     const roundPause = Number(roundPauseInput.value);
-    if (!Number.isFinite(roundPause) || roundPause <= 0) return showConfigError('La pausa entre rondas debe ser mayor que cero.');
+    if (!Number.isFinite(roundPause) || roundPause < policy.pauseMin || roundPause > policy.pauseMax) {
+      return showConfigError(`La pausa debe estar entre ${policy.pauseMin} y ${policy.pauseMax} s.`);
+    }
     return {
       repetitions: Math.round(repetitions),
       waitMinMs: Math.round(roundPause * 1000),
@@ -843,8 +847,10 @@ function readBaseConfig(): BaseConfig | null {
 
   const waitMin = numberInput('waitMin');
   const waitMax = numberInput('waitMax');
-  if (!Number.isFinite(waitMin) || !Number.isFinite(waitMax) || waitMax <= waitMin) {
-    return showConfigError('La espera máxima debe ser mayor que la mínima.');
+  if (!Number.isFinite(waitMin) || !Number.isFinite(waitMax)
+      || waitMin < policy.pauseMin || waitMax > policy.pauseMax
+      || waitMax - waitMin < 0.1) {
+    return showConfigError(`La aparición debe estar entre ${policy.pauseMin} y ${policy.pauseMax} s, con la máxima mayor que la mínima.`);
   }
 
   return {

@@ -1,4 +1,5 @@
 import './cognitive-games.css';
+import { timingPolicy } from './training-timing';
 
 export type CognitiveExerciseId =
   | 'flow'
@@ -149,53 +150,50 @@ export const cognitiveMeta: Record<CognitiveExerciseId, CognitiveMeta> = {
   },
 };
 
+function cognitiveTiming(kind: CognitiveExerciseId): Pick<CognitiveBaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
+  const policy = timingPolicy(kind);
+  return {
+    waitMinMs: Math.round(policy.defaultWaitMin * 1000),
+    waitMaxMs: Math.round(policy.defaultWaitMax * 1000),
+    stimulusDurationMs: Math.round(policy.defaultDuration * 1000),
+  };
+}
+
 export const cognitiveDefaults: Record<CognitiveExerciseId, CognitiveConfig> = {
   flow: {
     kind: 'flow',
     repetitions: 20,
-    waitMinMs: 300,
-    waitMaxMs: 700,
-    stimulusDurationMs: 2800,
+    ...cognitiveTiming('flow'),
   },
   'memory-match': {
     kind: 'memory-match',
     repetitions: 24,
-    waitMinMs: 250,
-    waitMaxMs: 550,
-    stimulusDurationMs: 2800,
+    ...cognitiveTiming('memory-match'),
     nBack: 2,
   },
   'memory-matrix': {
     kind: 'memory-matrix',
     repetitions: 12,
-    waitMinMs: 350,
-    waitMaxMs: 700,
-    stimulusDurationMs: 1200,
+    ...cognitiveTiming('memory-matrix'),
     gridSize: 4,
     memoryCells: 5,
   },
   'spatial-match': {
     kind: 'spatial-match',
     repetitions: 20,
-    waitMinMs: 250,
-    waitMaxMs: 550,
-    stimulusDurationMs: 2600,
+    ...cognitiveTiming('spatial-match'),
     itemCount: 4,
   },
   'star-search': {
     kind: 'star-search',
     repetitions: 12,
-    waitMinMs: 350,
-    waitMaxMs: 700,
-    stimulusDurationMs: 6000,
+    ...cognitiveTiming('star-search'),
     pairCount: 4,
   },
   'rule-shift': {
     kind: 'rule-shift',
     repetitions: 20,
-    waitMinMs: 250,
-    waitMaxMs: 550,
-    stimulusDurationMs: 3200,
+    ...cognitiveTiming('rule-shift'),
     optionCount: 3,
   },
 };
