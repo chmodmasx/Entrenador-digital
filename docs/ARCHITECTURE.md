@@ -2,125 +2,173 @@
 
 ## Resumen
 
-El proyecto separa un núcleo web reutilizable de un contenedor Android mínimo.
+Entrenador Digital separa una aplicación web local de un contenedor Android pequeño. No requiere backend ni cuenta de usuario.
 
 ```text
 Entrenador Digital
-├── web/       HTML + CSS + TypeScript
-├── android/   Kotlin + WebViewAssetLoader
-└── .github/   CI/CD
+├── web/
+│   ├── src/domain/       tipos, IDs, metadatos y validación pura
+│   ├── src/components/   controles reutilizables
+│   ├── src/storage/      IndexedDB y esquema de backup
+│   ├── src/platform/     bridge Android explícito
+│   ├── src/cognitive-games.ts
+│   ├── src/profiles.ts
+│   └── src/main.ts       orquestación y pantallas
+├── android/
+│   └── app/src/main/java/com/entrenadordigital/app/
+│       ├── MainActivity.kt
+│       ├── NativeBridge.kt
+│       ├── BackupManager.kt
+│       ├── UpdateManager.kt
+│       └── UpdateApkProvider.kt
+└── .github/workflows/
 ```
 
-La aplicación no requiere backend. En Android, todos los recursos web se empaquetan dentro del APK.
+Los assets web se compilan con Vite y se empaquetan dentro del APK mediante `WebViewAssetLoader`.
+
+## Principios de diseño
+
+- Una sola fuente de verdad para IDs y metadatos de ejercicios.
+- Milisegundos como unidad interna para tiempos persistidos y de ejecución.
+- Validadores puros para impedir configuraciones no jugables.
+- Comunicación explícita entre módulos; no se usan `MutationObserver` como bus interno.
+- Los controles interactivos se montan una vez y son responsables de sus propios eventos.
+- La capa web debe seguir funcionando en preview aunque el bridge nativo no exista.
 
 ## Capa web
 
-Responsabilidades:
+### Dominio
 
-- navegación;
-- interfaz;
-- motor de sesiones;
-- generación de estímulos;
-- validación de respuestas;
-- cálculo de resultados;
-- presets e historial;
-- persistencia local.
+`src/domain/exercises.ts` centraliza:
 
-Tecnologías:
+- IDs de ejercicios;
+- categorías;
+- metadatos;
+- direcciones;
+- colores;
+- consignas compartidas.
 
-- TypeScript;
-- HTML;
-- CSS;
-- Vite para desarrollo/build;
-- IndexedDB para persistencia durable;
-- SVG/Canvas para gráficos.
+`src/domain/validation.ts` contiene reglas de configuración independientes del DOM.
 
-No se utilizará un framework UI grande en la primera etapa.
+`training-timing.ts` concentra defaults, mínimos y máximos de tiempo para todos los ejercicios.
 
-## Capa Android
+### Componentes
 
-Responsabilidades:
+`src/components/stepper.ts` implementa el control numérico completo:
 
-- alojar WebView;
-- servir assets locales con `WebViewAssetLoader`;
-- modo inmersivo;
-- mantener pantalla encendida durante sesiones;
-- vibración nativa cuando corresponda;
-- importación/exportación y compartir, en fases posteriores;
-- información de versión de la app.
+- coma o punto decimal;
+- límites;
+- pulsación mantenida;
+- teclado;
+- normalización;
+- eventos.
 
-El contenedor debe evitar permisos innecesarios. No se solicitará permiso de Internet mientras el producto no tenga una función que lo necesite.
+No existe una segunda capa de listeners globales que anule el comportamiento del control.
 
-## Compatibilidad
+### Perfiles
 
-Objetivo inicial: `minSdk 21` (Android 5.0).
+Los perfiles usan autosave y guardan la configuración global por ejercicio. Los tiempos se persisten en milisegundos.
 
-El APK será universal mientras no se incorporen bibliotecas nativas dependientes de ABI. La interfaz web deberá evitar APIs modernas imprescindibles sin fallback.
+El cargador de perfiles mantiene compatibilidad con la estructura anterior, que almacenaba segundos, y normaliza los valores al esquema actual.
 
-## Motor de entrenamiento
+### Persistencia
 
-El motor será independiente de las pantallas.
+- `localStorage`: ajustes, perfil activo y perfiles.
+- IndexedDB `entrenador-digital`: sesiones e infraestructura de compatibilidad para datos antiguos.
+- Backup JSON: datos propios de la app + stores locales.
 
-```text
-ExerciseEngine
-├── SessionConfig
-├── StimulusGenerator
-├── Scheduler
-├── ResponseEvaluator
-├── Timer
-└── SessionResult
-```
+La importación de backup valida toda la estructura antes de escribir. La restauración de stores se realiza en una única transacción IndexedDB y conserva una copia en memoria para rollback de mejor esfuerzo.
 
-Cada ejercicio implementará un contrato común para generar estímulos y evaluar respuestas.
+### Navegación y ciclo de vida
+
+`main.ts` controla la pantalla activa y llama explícitamente a:
+
+- sincronización del modo nativo;
+- mejoras de perfiles;
+- componentes y handlers de pantalla.
+
+Los módulos no esperan a que aparezca determinado texto o nodo para descubrir el estado de la aplicación.
 
 ## Temporización
 
 - Reloj monotónico: `performance.now()`.
-- Presentación de estímulos: sincronización con `requestAnimationFrame()` cuando sea útil.
-- La lógica no asumirá que `setTimeout()` es exacto.
-- Anticipaciones se registran si existe respuesta antes de que el estímulo esté activo.
+- Presentación sincronizada con `requestAnimationFrame()` cuando corresponde.
+- `setTimeout()` se usa como scheduler, no como reloj exacto.
+- Todos los defaults son positivos y se validan con tests.
+- Los límites se centralizan en `TIMING_POLICIES`.
 
-## Persistencia
+## Capa Android
 
-IndexedDB contendrá al menos:
+### MainActivity
 
-- `settings`;
-- `presets`;
-- `sessions`.
+Responsable de:
 
-Los datos de una sesión incluyen configuración, intentos y resumen calculado.
+- crear y alojar el WebView;
+- WindowInsets;
+- modo inmersivo;
+- pantalla encendida durante entrenamiento;
+- Android Back.
 
-## Bridge Android/Web
+### NativeBridge
 
-El bridge debe ser pequeño y explícito. API prevista:
+Expone exclusivamente las capacidades necesarias a la web:
 
-```text
-setKeepScreenOn(enabled)
-vibrate(milliseconds)
-getAppVersion()
-exportBackup(payload)      [posterior]
-importBackup()             [posterior]
-shareResult(payload)       [posterior]
-```
+- `setTrainingMode`;
+- `vibrate`;
+- `getAppVersion`;
+- `saveBackup`;
+- `openBackup`;
+- `finishApp`.
 
-La capa web debe funcionar aunque una función opcional del bridge no exista.
+### BackupManager
 
-## Seguridad
+Aísla Storage Access Framework, lectura/escritura de archivos y entrega del JSON al WebView.
 
-- JavaScript del WebView sólo carga recursos de la aplicación.
-- Sin navegación arbitraria a Internet.
-- Bridge expuesto únicamente a contenido local controlado.
-- Sin secretos en el cliente.
-- Sin permisos Android que no sean necesarios.
+### UpdateManager
 
-## Build
+Aísla el actualizador nativo. Una actualización descargada se valida antes de abrir el instalador:
 
-Vite generará los assets web de producción. El proyecto Android copiará/incluirá esos assets para generar un APK release.
+- respuesta y tamaño de descarga;
+- SHA-256 cuando GitHub lo publica;
+- `packageName`;
+- `versionCode`;
+- versión declarada;
+- firma compatible con la instalación existente.
 
-GitHub Actions realizará posteriormente:
+## Seguridad WebView
 
-1. build web;
-2. pruebas;
-3. build Android;
-4. firma con secretos del repositorio;
-5. publicación de APK universal al crear tags `v*`.
+- `allowFileAccess = false`.
+- `allowContentAccess = false`.
+- Recursos web servidos por `WebViewAssetLoader`.
+- Navegación restringida a `appassets.androidplatform.net`.
+- Debugging web sólo en builds DEBUG.
+- El bridge se elimina en `onDestroy`.
+- Tráfico cleartext deshabilitado.
+
+Internet se usa únicamente para consultar/descargar actualizaciones desde GitHub Releases.
+
+## Compatibilidad
+
+- `minSdk 21`.
+- APK universal.
+- AndroidX WebKit fijado a una versión compatible con Android 5.
+- CSS con fallbacks para WebViews antiguos donde son necesarios.
+
+## Tests y CI
+
+El workflow de PR ejecuta:
+
+1. instalación de dependencias web;
+2. `tsc --noEmit` + build Vite;
+3. tests Vitest;
+4. build del APK debug.
+
+Los tests cubren actualmente:
+
+- políticas/defaults de tiempo;
+- sanitización;
+- validación de configuración;
+- registro de ejercicios;
+- esquema de backup.
+
+Los releases oficiales continúan construyéndose desde source y usando la firma permanente configurada en GitHub Actions.
