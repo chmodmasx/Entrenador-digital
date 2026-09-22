@@ -1,4 +1,3 @@
-import { sanitizeTimingSeconds } from './training-timing';
 import {
   EXERCISE_META,
   type ColorId,
@@ -8,12 +7,12 @@ import {
 } from './domain/exercises';
 import {
   DEFAULT_CONFIGS,
-  cloneConfig,
   cloneConfigMap,
   type BaseConfig,
   type ConfigMap,
   type ExerciseConfig,
 } from './domain/config';
+import { normalizeStoredExerciseConfig } from './domain/profile-migration';
 
 type ExerciseSnapshot = ExerciseConfig;
 type SnapshotMap = ConfigMap;
@@ -123,42 +122,10 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
   };
 }
 
-function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: ExerciseSnapshot | undefined, fallback: T): T {
-  if (!candidate || candidate.kind !== fallback.kind) return cloneConfig(fallback);
-
-  const raw = candidate as ExerciseSnapshot & {
-    waitMin?: number;
-    waitMax?: number;
-    stimulusDuration?: number;
-  };
-  const merged = { ...cloneConfig(fallback), ...candidate } as T;
-
-  const waitMinSeconds = Number.isFinite(raw.waitMinMs)
-    ? Number(raw.waitMinMs) / 1000
-    : Number(raw.waitMin);
-  const waitMaxSeconds = Number.isFinite(raw.waitMaxMs)
-    ? Number(raw.waitMaxMs) / 1000
-    : Number(raw.waitMax);
-  const durationSeconds = Number.isFinite(raw.stimulusDurationMs)
-    ? Number(raw.stimulusDurationMs) / 1000
-    : Number(raw.stimulusDuration);
-
-  const timing = sanitizeTimingSeconds(
-    merged.kind,
-    waitMinSeconds,
-    waitMaxSeconds,
-    durationSeconds,
-  );
-
-  merged.waitMinMs = Math.round(timing.waitMin * 1000);
-  merged.waitMaxMs = Math.round(timing.waitMax * 1000);
-  merged.stimulusDurationMs = Math.round(timing.stimulusDuration * 1000);
-  merged.repetitions = Number.isFinite(merged.repetitions)
-    ? Math.min(200, Math.max(2, Math.round(merged.repetitions)))
-    : fallback.repetitions;
-
-  return merged;
+function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: unknown, fallback: T): T {
+  return normalizeStoredExerciseConfig(candidate, fallback);
 }
+
 function profileEnsureState(): void {
   if (!profiles.length) profiles = [profileCreate('General')];
   if (!profiles.some((profile) => profile.id === activeProfileId)) activeProfileId = profiles[0].id;
