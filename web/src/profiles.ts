@@ -8,6 +8,7 @@ import {
 import {
   DEFAULT_CONFIGS,
   cloneConfigMap,
+  setExerciseConfig,
   type BaseConfig,
   type ConfigMap,
   type ExerciseConfig,
@@ -397,7 +398,7 @@ function profileSaveForm(form: HTMLFormElement, exercise: ExerciseId, context?: 
   if (!snapshot) return;
 
   const current = profileActive();
-  current.configs[exercise] = snapshot;
+  setExerciseConfig(current.configs, snapshot);
   current.updatedAt = new Date().toISOString();
   profilePersistAll();
   if (context) profileRenderContext(context, false);
