@@ -649,7 +649,10 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
   const beginStarSearch = () => {
     const starConfig = config as StarSearchConfig;
     const descriptors = uniqueDescriptors(starConfig.pairCount + 1);
-    const paired = descriptors.slice(0, starConfig.pairCount).flatMap((descriptor) => [descriptor, { ...descriptor }]);
+    const paired: StarDescriptor[] = [];
+    descriptors.slice(0, starConfig.pairCount).forEach((descriptor) => {
+      paired.push(descriptor, { ...descriptor });
+    });
     const odd = descriptors[starConfig.pairCount];
     const items = shuffle([...paired, odd]);
     const oddKey = descriptorKey(odd);
