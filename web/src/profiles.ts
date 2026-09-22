@@ -1,8 +1,14 @@
 import { sanitizeTimingSeconds, timingPolicy } from './training-timing';
-import { EXERCISE_META, type ExerciseId } from './domain/exercises';
-type DirectionId = 'up' | 'up-right' | 'right' | 'down-right' | 'down' | 'down-left' | 'left' | 'up-left';
-type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
-type StroopMode = 'ink' | 'word';
+import {
+  COLOR_IDS,
+  DEFAULT_WORDS,
+  DIRECTION_IDS,
+  EXERCISE_META,
+  type ColorId,
+  type DirectionId,
+  type ExerciseId,
+  type StroopInstruction as StroopMode,
+} from './domain/exercises';
 
 interface BaseSnapshot {
   repetitions: number;
@@ -106,8 +112,8 @@ const PRESET_STORE = 'presets';
 const app = document.querySelector<HTMLDivElement>('#app');
 
 
-const allDirections: DirectionId[] = ['up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left'];
-const allColors: ColorId[] = ['blue', 'red', 'green', 'yellow', 'orange', 'violet'];
+const allDirections: DirectionId[] = [...DIRECTION_IDS];
+const allColors: ColorId[] = [...COLOR_IDS];
 
 let profiles: TrainingProfile[] = profileLoadAll();
 let activeProfileId = localStorage.getItem(ACTIVE_KEY) ?? '';
@@ -154,7 +160,7 @@ function profileDefaults(): SnapshotMap {
     },
     words: {
       kind: 'words', repetitions: 20, ...profileTimingDefaults('words'),
-      words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
+      words: [...DEFAULT_WORDS],
     },
     flow: {
       kind: 'flow', repetitions: 20, ...profileTimingDefaults('flow'),
