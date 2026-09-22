@@ -2,7 +2,7 @@
 
 .exercise-carousel-shell {
   display: grid;
-  gap: 9px;
+  gap: 11px;
   min-width: 0;
 }
 
@@ -38,8 +38,11 @@
   display: flex;
   width: 100%;
   min-width: 0;
+  gap: 18px;
+  padding-inline: 7px;
   overflow-x: auto;
   overflow-y: hidden;
+  scroll-padding-inline: 7px;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   overscroll-behavior-x: contain;
@@ -52,10 +55,11 @@
 }
 
 .exercise-page {
-  width: 100%;
-  min-width: 100%;
-  flex: 0 0 100%;
-  scroll-snap-align: start;
+  width: calc(100% - 14px);
+  min-width: calc(100% - 14px);
+  flex: 0 0 calc(100% - 14px);
+  box-sizing: border-box;
+  scroll-snap-align: center;
   scroll-snap-stop: always;
 }
 
@@ -473,19 +477,12 @@
 
 .flow-leaf-item {
   position: absolute;
-  width: clamp(90px, 21vw, 165px);
+  left: var(--leaf-x);
+  top: var(--leaf-y);
+  width: clamp(72px, 18vw, 126px);
+  aspect-ratio: 1;
   transform: translate(-50%, -50%) scale(var(--leaf-scale));
   will-change: left, top;
-}
-
-.flow-leaf-item-right,
-.flow-leaf-item-left {
-  top: var(--flow-track);
-}
-
-.flow-leaf-item-up,
-.flow-leaf-item-down {
-  left: var(--flow-track);
 }
 
 .flow-leaf-item-right { animation: flowRight var(--flow-duration) linear forwards; }
@@ -496,32 +493,34 @@
 .flow-leaf {
   display: block;
   width: 100%;
-  filter: drop-shadow(0 11px 13px rgba(0,0,0,.18));
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.16));
 }
 
 .flow-leaf-rotator {
   transform: rotate(var(--leaf-rotation));
-  transform-origin: 90px 60px;
+  transform-origin: 90px 90px;
 }
 
 @keyframes flowRight {
-  from { left: -12%; }
-  to { left: 112%; }
+  from { left: var(--leaf-x); }
+  to { left: calc(var(--leaf-x) + 24%); }
 }
 
 @keyframes flowLeft {
-  from { left: 112%; }
-  to { left: -12%; }
+  from { left: var(--leaf-x); }
+  to { left: calc(var(--leaf-x) - 24%); }
 }
 
 @keyframes flowUp {
-  from { top: 112%; }
-  to { top: -12%; }
+  from { top: var(--leaf-y); }
+  to { top: calc(var(--leaf-y) - 24%); }
 }
 
 @keyframes flowDown {
-  from { top: -12%; }
-  to { top: 112%; }
+  from { top: var(--leaf-y); }
+  to { top: calc(var(--leaf-y) + 24%); }
 }
 
 .flow-swipe-hint {
@@ -878,7 +877,7 @@
   }
 
   .flow-leaf-item {
-    width: clamp(72px, 14vw, 130px);
+    width: clamp(66px, 13vw, 112px);
   }
 
   .memory-card {
