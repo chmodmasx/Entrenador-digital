@@ -6,6 +6,7 @@ export interface SettingsScreenActions {
   onExportBackup: () => void;
   onImportBackup: () => void;
   onClearHistory: () => void;
+  onCheckUpdates: () => void;
 }
 
 function escapeHtml(value: string): string {
@@ -44,6 +45,11 @@ export function mountSettingsScreen(
         ${toggleRow('setting-vibration', 'Vibración', 'Vibrar brevemente cuando aparece el estímulo', settings.vibration)}
       </section>
 
+      <section class="settings-card settings-list-card">
+        <div class="section-title"><span>↻</span><div><h2>Aplicación</h2><p>Versión instalada y actualizaciones</p></div></div>
+        <button class="settings-action-row" data-action="check-updates"><span><strong>Buscar actualizaciones</strong><small>Versión instalada ${escapeHtml(version)} · consulta la última release disponible</small></span><b>›</b></button>
+      </section>
+
       <section class="settings-card settings-list-card" data-settings-data>
         <div class="section-title"><span>⌁</span><div><h2>Datos locales</h2><p>Todo permanece guardado solamente en este dispositivo</p></div></div>
         <button class="settings-action-row" data-action="export-backup"><span><strong>Exportar copia de seguridad</strong><small>Guarda perfiles, ajustes e historial en un archivo JSON</small></span><b>›</b></button>
@@ -71,6 +77,7 @@ export function mountSettingsScreen(
     });
   });
 
+  root.querySelector<HTMLButtonElement>('[data-action="check-updates"]')?.addEventListener('click', actions.onCheckUpdates);
   root.querySelector<HTMLButtonElement>('[data-action="export-backup"]')?.addEventListener('click', actions.onExportBackup);
   root.querySelector<HTMLButtonElement>('[data-action="import-backup"]')?.addEventListener('click', actions.onImportBackup);
   root.querySelector<HTMLButtonElement>('[data-action="clear-history"]')?.addEventListener('click', actions.onClearHistory);
