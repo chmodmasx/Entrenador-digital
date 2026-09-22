@@ -215,6 +215,8 @@ jobs:
             gh release upload "$TAG" "$APK" "$SHA" --clobber
             if [[ "$PRERELEASE" == "true" ]]; then
               gh release edit "$TAG" --prerelease
+            else
+              gh release edit "$TAG" --prerelease=false --latest
             fi
           else
             RELEASE_ARGS=(
