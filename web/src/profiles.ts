@@ -6,9 +6,9 @@ type StroopMode = 'ink' | 'word';
 
 interface BaseSnapshot {
   repetitions: number;
-  waitMin: number;
-  waitMax: number;
-  stimulusDuration: number;
+  waitMinMs: number;
+  waitMaxMs: number;
+  stimulusDurationMs: number;
 }
 
 interface ArrowsSnapshot extends BaseSnapshot {
@@ -80,7 +80,7 @@ type ExerciseSnapshot = ArrowsSnapshot | NumbersSnapshot | ColorsSnapshot | Colo
 type SnapshotMap = Record<ExerciseId, ExerciseSnapshot>;
 
 interface TrainingProfile {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   name: string;
   configs: SnapshotMap;
@@ -121,12 +121,12 @@ let lastTaggedSessionId = '';
 profileEnsureState();
 void profileClearOldPresets();
 
-function profileTimingDefaults(kind: ExerciseId): Pick<BaseSnapshot, 'waitMin' | 'waitMax' | 'stimulusDuration'> {
+function profileTimingDefaults(kind: ExerciseId): Pick<BaseSnapshot, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
   const policy = timingPolicy(kind);
   return {
-    waitMin: policy.defaultWaitMin,
-    waitMax: policy.defaultWaitMax,
-    stimulusDuration: policy.defaultDuration,
+    waitMinMs: Math.round(policy.defaultWaitMin * 1000),
+    waitMaxMs: Math.round(policy.defaultWaitMax * 1000),
+    stimulusDurationMs: Math.round(policy.defaultDuration * 1000),
   };
 }
 
@@ -184,7 +184,7 @@ function profileCloneConfigs(source: SnapshotMap): SnapshotMap {
 function profileCreate(name: string, source?: SnapshotMap): TrainingProfile {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: profileCreateId(),
     name,
     configs: source ? profileCloneConfigs(source) : profileDefaults(),
@@ -239,7 +239,7 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
   };
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: typeof candidate.id === 'string' && candidate.id ? candidate.id : profileCreateId(),
     name: typeof candidate.name === 'string' && candidate.name.trim() ? candidate.name.trim() : 'Sin nombre',
     configs,
@@ -251,24 +251,39 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
 function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: ExerciseSnapshot | undefined, fallback: T): T {
   if (!candidate || candidate.kind !== fallback.kind) return JSON.parse(JSON.stringify(fallback)) as T;
 
+  const raw = candidate as ExerciseSnapshot & {
+    waitMin?: number;
+    waitMax?: number;
+    stimulusDuration?: number;
+  };
   const merged = { ...JSON.parse(JSON.stringify(fallback)), ...candidate } as T;
+
+  const waitMinSeconds = Number.isFinite(raw.waitMinMs)
+    ? Number(raw.waitMinMs) / 1000
+    : Number(raw.waitMin);
+  const waitMaxSeconds = Number.isFinite(raw.waitMaxMs)
+    ? Number(raw.waitMaxMs) / 1000
+    : Number(raw.waitMax);
+  const durationSeconds = Number.isFinite(raw.stimulusDurationMs)
+    ? Number(raw.stimulusDurationMs) / 1000
+    : Number(raw.stimulusDuration);
+
   const timing = sanitizeTimingSeconds(
     merged.kind,
-    Number(merged.waitMin),
-    Number(merged.waitMax),
-    Number(merged.stimulusDuration),
+    waitMinSeconds,
+    waitMaxSeconds,
+    durationSeconds,
   );
 
-  merged.waitMin = timing.waitMin;
-  merged.waitMax = timing.waitMax;
-  merged.stimulusDuration = timing.stimulusDuration;
+  merged.waitMinMs = Math.round(timing.waitMin * 1000);
+  merged.waitMaxMs = Math.round(timing.waitMax * 1000);
+  merged.stimulusDurationMs = Math.round(timing.stimulusDuration * 1000);
   merged.repetitions = Number.isFinite(merged.repetitions)
     ? Math.min(200, Math.max(2, Math.round(merged.repetitions)))
     : fallback.repetitions;
 
   return merged;
 }
-
 function profileEnsureState(): void {
   if (!profiles.length) profiles = [profileCreate('General')];
   if (!profiles.some((profile) => profile.id === activeProfileId)) activeProfileId = profiles[0].id;
@@ -434,13 +449,23 @@ function profileReadBase(form: HTMLFormElement): BaseSnapshot | null {
   if (roundPauseInput) {
     const roundPause = profileParseNumber(roundPauseInput.value);
     if (!Number.isFinite(roundPause)) return null;
-    return { repetitions, waitMin: roundPause, waitMax: roundPause, stimulusDuration };
+    return {
+      repetitions,
+      waitMinMs: Math.round(roundPause * 1000),
+      waitMaxMs: Math.round(roundPause * 1000),
+      stimulusDurationMs: Math.round(stimulusDuration * 1000),
+    };
   }
 
   const waitMin = profileFieldNumber(form, 'waitMin');
   const waitMax = profileFieldNumber(form, 'waitMax');
   if (![waitMin, waitMax].every(Number.isFinite)) return null;
-  return { repetitions, waitMin, waitMax, stimulusDuration };
+  return {
+    repetitions,
+    waitMinMs: Math.round(waitMin * 1000),
+    waitMaxMs: Math.round(waitMax * 1000),
+    stimulusDurationMs: Math.round(stimulusDuration * 1000),
+  };
 }
 
 function profileReadForm(form: HTMLFormElement, exercise: ExerciseId): ExerciseSnapshot | null {
@@ -544,10 +569,10 @@ function profileApplyToForm(form: HTMLFormElement, snapshot: ExerciseSnapshot): 
   applying = true;
   try {
     profileSetField(form, 'repetitions', snapshot.repetitions);
-    profileSetField(form, 'waitMin', snapshot.waitMin);
-    profileSetField(form, 'waitMax', snapshot.waitMax);
-    profileSetField(form, 'roundPause', Math.round(((snapshot.waitMin + snapshot.waitMax) / 2) * 10) / 10);
-    profileSetField(form, 'stimulusDuration', snapshot.stimulusDuration);
+    profileSetField(form, 'waitMin', snapshot.waitMinMs / 1000);
+    profileSetField(form, 'waitMax', snapshot.waitMaxMs / 1000);
+    profileSetField(form, 'roundPause', Math.round(((snapshot.waitMinMs + snapshot.waitMaxMs) / 2000) * 10) / 10);
+    profileSetField(form, 'stimulusDuration', snapshot.stimulusDurationMs / 1000);
 
     if (snapshot.kind === 'arrows') {
       form.querySelectorAll<HTMLInputElement>('input[name="direction"]').forEach((input) => {
