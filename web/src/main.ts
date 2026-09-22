@@ -2,7 +2,6 @@ import './styles.css';
 import './passive.css';
 import './sections.css';
 import {
-  cognitiveCardVisual,
   cognitiveConfigSection,
   cognitiveDefaults,
   cognitiveResultDetailLabel,
@@ -34,6 +33,7 @@ import { validateBaseTrainingValues } from './domain/validation';
 import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
 import { exportBackup, requestBackupImport } from './backup';
 import { profileEnhanceCurrentScreen } from './profiles';
+import { mountHomeScreen } from './screens/home';
 import {
   SESSION_STORE,
   clearStore as dbClearStore,
@@ -295,15 +295,6 @@ function arrowSvg(direction: Direction, className = ''): string {
     </svg>`;
 }
 
-function icon(name: string): string {
-  const icons: Record<string, string> = {
-    history: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>',
-    settings: '<svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>',
-    sliders: '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6"/></svg>',
-  };
-  return icons[name] ?? '';
-}
-
 function navigate(next: Screen): void {
   screen = next;
   window.scrollTo(0, 0);
@@ -332,146 +323,18 @@ function render(): void {
 }
 
 function renderHome(): void {
-  app.innerHTML = `
-    <main class="app-shell home-screen">
-      <section class="brand-hero">
-        <div class="brand-row">
-          <div class="brand-mark" aria-hidden="true">ϟ</div>
-          <div>
-            <p class="eyebrow">ENTRENAMIENTO DE REACCIÓN</p>
-            <h1>Entrenador Digital</h1>
-          </div>
-        </div>
-        <div class="hero-copy">
-          <p>Entrena tu atención.</p>
-          <p>Mejora tu velocidad.</p>
-          <p>Supera tus límites.</p>
-        </div>
-        <div class="speed-lines" aria-hidden="true"><span></span><span></span><span></span></div>
-      </section>
-
-      <div class="exercise-carousel-shell">
-        <div class="exercise-carousel-dots" aria-label="Páginas de ejercicios">
-          <button type="button" class="exercise-carousel-dot is-active" data-carousel-page="0" aria-label="Página 1" aria-current="true"></button>
-          <button type="button" class="exercise-carousel-dot" data-carousel-page="1" aria-label="Página 2"></button>
-          <button type="button" class="exercise-carousel-dot" data-carousel-page="2" aria-label="Página 3"></button>
-        </div>
-        <div class="exercise-carousel" id="exercise-carousel">
-          <section class="exercise-grid exercise-page" data-exercise-page="0" aria-label="Ejercicios, página 1">
-            ${exerciseCard('arrows', '<span class="exercise-arrow">➜</span>')}
-            ${exerciseCard('numbers', '<span class="exercise-numbers">1·2·3</span>')}
-            ${exerciseCard('colors', '<span class="color-dots"><i></i><i></i><i></i></span>')}
-            ${exerciseCard('color-number', '<span class="mixed-icon"><b>7</b><i></i><i></i></span>')}
-          </section>
-          <section class="exercise-grid exercise-page" data-exercise-page="1" aria-label="Ejercicios, página 2">
-            ${exerciseCard('stroop', '<span class="letter-blocks"><b>A</b><b>B</b></span>')}
-            ${exerciseCard('words', '<span class="word-icon">≡</span>')}
-            ${exerciseCard('flow', cognitiveCardVisual('flow'))}
-            ${exerciseCard('memory-match', cognitiveCardVisual('memory-match'))}
-          </section>
-          <section class="exercise-grid exercise-page" data-exercise-page="2" aria-label="Ejercicios, página 3">
-            ${exerciseCard('memory-matrix', cognitiveCardVisual('memory-matrix'))}
-            ${exerciseCard('spatial-match', cognitiveCardVisual('spatial-match'))}
-            ${exerciseCard('star-search', cognitiveCardVisual('star-search'))}
-            ${exerciseCard('rule-shift', cognitiveCardVisual('rule-shift'))}
-          </section>
-        </div>
-      </div>
-
-      <nav class="home-shortcuts" aria-label="Accesos rápidos">
-        <button class="shortcut-card" data-action="history">
-          <span class="shortcut-icon">${icon('history')}</span>
-          <span><strong>Historial</strong><small>Sesiones realizadas</small></span>
-        </button>
-        <button class="shortcut-card" data-action="settings">
-          <span class="shortcut-icon">${icon('settings')}</span>
-          <span><strong>Ajustes</strong><small>Experiencia de entrenamiento</small></span>
-        </button>
-      </nav>
-
-      <p class="home-motto"><span></span> DISCIPLINA HOY, REFLEJOS MAÑANA <span></span></p>
-    </main>`;
-
-  app.querySelectorAll<HTMLButtonElement>('[data-exercise]').forEach((button) => {
-    button.addEventListener('click', () => {
-      selectedExercise = button.dataset.exercise as ExerciseId;
+  mountHomeScreen(app, {
+    onConfigure: (exercise) => {
+      selectedExercise = exercise;
       navigate('config');
-    });
-  });
-  app.querySelectorAll<HTMLButtonElement>('[data-quick-start]').forEach((button) => {
-    button.addEventListener('click', () => {
-      selectedExercise = button.dataset.quickStart as ExerciseId;
+    },
+    onQuickStart: (exercise) => {
+      selectedExercise = exercise;
       quickStartRequested = true;
       navigate('config');
-    });
-  });
-  bindExerciseCarousel();
-  app.querySelector<HTMLButtonElement>('[data-action="history"]')?.addEventListener('click', () => navigate('history'));
-  app.querySelector<HTMLButtonElement>('[data-action="settings"]')?.addEventListener('click', () => navigate('settings'));
-}
-
-function exerciseCard(id: ExerciseId, visual: string): string {
-  const meta = exerciseMeta[id];
-  return `
-    <article class="exercise-card-wrap">
-      <button class="exercise-card" data-exercise="${id}">
-        <span class="exercise-visual">${visual}</span>
-        <strong>${meta.title}</strong>
-        <small>${meta.subtitle}</small>
-      </button>
-      <button class="exercise-quick-start" type="button" data-quick-start="${id}" aria-label="Iniciar ${meta.title} con el perfil activo">▶</button>
-    </article>`;
-}
-
-function bindExerciseCarousel(): void {
-  const carousel = app.querySelector<HTMLDivElement>('#exercise-carousel');
-  if (!carousel) return;
-  const pages = Array.from(carousel.querySelectorAll<HTMLElement>('[data-exercise-page]'));
-  const dots = Array.from(app.querySelectorAll<HTMLButtonElement>('[data-carousel-page]'));
-  let frame = 0;
-
-  const targetLeft = (page: HTMLElement): number => {
-    const centered = page.offsetLeft - (carousel.clientWidth - page.clientWidth) / 2;
-    const maximum = Math.max(0, carousel.scrollWidth - carousel.clientWidth);
-    return Math.max(0, Math.min(maximum, centered));
-  };
-
-  const setActive = (index: number) => {
-    const activeIndex = Math.max(0, Math.min(pages.length - 1, index));
-    dots.forEach((dot, dotIndex) => {
-      const active = dotIndex === activeIndex;
-      dot.classList.toggle('is-active', active);
-      if (active) dot.setAttribute('aria-current', 'true');
-      else dot.removeAttribute('aria-current');
-    });
-  };
-
-  const closestPageIndex = (): number => {
-    let closestIndex = 0;
-    let closestDistance = Number.POSITIVE_INFINITY;
-    pages.forEach((page, index) => {
-      const distance = Math.abs(carousel.scrollLeft - targetLeft(page));
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-      }
-    });
-    return closestIndex;
-  };
-
-  carousel.addEventListener('scroll', () => {
-    if (frame) cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => setActive(closestPageIndex()));
-  }, { passive: true });
-
-  dots.forEach((dot) => {
-    dot.addEventListener('click', () => {
-      const index = Math.max(0, Math.min(pages.length - 1, Number(dot.dataset.carouselPage ?? 0)));
-      const page = pages[index];
-      if (!page) return;
-      carousel.scrollTo({ left: targetLeft(page), behavior: 'smooth' });
-      setActive(index);
-    });
+    },
+    onHistory: () => navigate('history'),
+    onSettings: () => navigate('settings'),
   });
 }
 
