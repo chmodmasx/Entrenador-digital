@@ -1,6 +1,15 @@
 import './cognitive-games.css';
-import { timingPolicy } from './training-timing';
 import { renderStepper } from './components/stepper';
+import {
+  DEFAULT_CONFIGS,
+  type CognitiveConfig,
+  type FlowConfig,
+  type MemoryMatchConfig,
+  type MemoryMatrixConfig,
+  type RuleShiftConfig,
+  type SpatialMatchConfig,
+  type StarSearchConfig,
+} from './domain/config';
 import {
   COGNITIVE_EXERCISE_IDS,
   EXERCISE_META,
@@ -10,50 +19,15 @@ import {
 
 export type { CognitiveExerciseId } from './domain/exercises';
 
-export interface CognitiveBaseConfig {
-  repetitions: number;
-  waitMinMs: number;
-  waitMaxMs: number;
-  stimulusDurationMs: number;
-}
-
-export interface FlowConfig extends CognitiveBaseConfig {
-  kind: 'flow';
-}
-
-export interface MemoryMatchConfig extends CognitiveBaseConfig {
-  kind: 'memory-match';
-  nBack: number;
-}
-
-export interface MemoryMatrixConfig extends CognitiveBaseConfig {
-  kind: 'memory-matrix';
-  gridSize: number;
-  memoryCells: number;
-}
-
-export interface SpatialMatchConfig extends CognitiveBaseConfig {
-  kind: 'spatial-match';
-  itemCount: number;
-}
-
-export interface StarSearchConfig extends CognitiveBaseConfig {
-  kind: 'star-search';
-  pairCount: number;
-}
-
-export interface RuleShiftConfig extends CognitiveBaseConfig {
-  kind: 'rule-shift';
-  optionCount: number;
-}
-
-export type CognitiveConfig =
-  | FlowConfig
-  | MemoryMatchConfig
-  | MemoryMatrixConfig
-  | SpatialMatchConfig
-  | StarSearchConfig
-  | RuleShiftConfig;
+export type {
+  CognitiveConfig,
+  FlowConfig,
+  MemoryMatchConfig,
+  MemoryMatrixConfig,
+  RuleShiftConfig,
+  SpatialMatchConfig,
+  StarSearchConfig,
+} from './domain/config';
 
 export interface CognitiveMeta {
   title: string;
@@ -114,54 +88,14 @@ export const cognitiveMeta: Record<CognitiveExerciseId, CognitiveMeta> = {
   'rule-shift': EXERCISE_META['rule-shift'],
 };
 
-function cognitiveTiming(kind: CognitiveExerciseId): Pick<CognitiveBaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
-  const policy = timingPolicy(kind);
-  return {
-    waitMinMs: Math.round(policy.defaultWaitMin * 1000),
-    waitMaxMs: Math.round(policy.defaultWaitMax * 1000),
-    stimulusDurationMs: Math.round(policy.defaultDuration * 1000),
-  };
-}
-
 export const cognitiveDefaults: Record<CognitiveExerciseId, CognitiveConfig> = {
-  flow: {
-    kind: 'flow',
-    repetitions: 20,
-    ...cognitiveTiming('flow'),
-  },
-  'memory-match': {
-    kind: 'memory-match',
-    repetitions: 24,
-    ...cognitiveTiming('memory-match'),
-    nBack: 2,
-  },
-  'memory-matrix': {
-    kind: 'memory-matrix',
-    repetitions: 12,
-    ...cognitiveTiming('memory-matrix'),
-    gridSize: 4,
-    memoryCells: 5,
-  },
-  'spatial-match': {
-    kind: 'spatial-match',
-    repetitions: 20,
-    ...cognitiveTiming('spatial-match'),
-    itemCount: 4,
-  },
-  'star-search': {
-    kind: 'star-search',
-    repetitions: 12,
-    ...cognitiveTiming('star-search'),
-    pairCount: 4,
-  },
-  'rule-shift': {
-    kind: 'rule-shift',
-    repetitions: 20,
-    ...cognitiveTiming('rule-shift'),
-    optionCount: 3,
-  },
+  flow: DEFAULT_CONFIGS.flow,
+  'memory-match': DEFAULT_CONFIGS['memory-match'],
+  'memory-matrix': DEFAULT_CONFIGS['memory-matrix'],
+  'spatial-match': DEFAULT_CONFIGS['spatial-match'],
+  'star-search': DEFAULT_CONFIGS['star-search'],
+  'rule-shift': DEFAULT_CONFIGS['rule-shift'],
 };
-
 export function isCognitiveExercise(value: string): value is CognitiveExerciseId {
   return isCognitiveExerciseId(value);
 }
