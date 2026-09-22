@@ -65,7 +65,6 @@ let runtime: RuntimeSession | null = null;
 let cognitiveController: CognitiveController | null = null;
 let lastSession: StoredSession | null = null;
 let audioContext: AudioContext | null = null;
-let quickStartRequested = false;
 
 function loadSettings(): AppSettings {
   try {
@@ -100,22 +99,12 @@ function render(): void {
   if (screen === 'settings') renderSettings();
 
   profileEnhanceCurrentScreen();
-
-  if (screen === 'config' && quickStartRequested) {
-    quickStartRequested = false;
-    app.querySelector<HTMLFormElement>('#exercise-config')?.requestSubmit();
-  }
 }
 
 function renderHome(): void {
   mountHomeScreen(app, {
     onConfigure: (exercise) => {
       selectedExercise = exercise;
-      navigate('config');
-    },
-    onQuickStart: (exercise) => {
-      selectedExercise = exercise;
-      quickStartRequested = true;
       navigate('config');
     },
     onHistory: () => navigate('history'),
