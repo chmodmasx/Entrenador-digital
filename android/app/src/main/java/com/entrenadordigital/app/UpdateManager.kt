@@ -26,6 +26,8 @@ class UpdateManager(private val activity: Activity) {
     private var pendingPermissionUpdate: AvailableUpdate? = null
     private var pendingInstallerFile: File? = null
     private var downloadDialog: AlertDialog? = null
+    private var manualCheckDialog: AlertDialog? = null
+    private var manualCheckInProgress = false
 
     private data class AvailableUpdate(
         val versionName: String,
@@ -64,6 +66,8 @@ class UpdateManager(private val activity: Activity) {
     fun shutdown() {
         downloadDialog?.dismiss()
         downloadDialog = null
+        manualCheckDialog?.dismiss()
+        manualCheckDialog = null
         executor.shutdownNow()
     }
 
@@ -78,6 +82,49 @@ class UpdateManager(private val activity: Activity) {
         }
     }
 
+    fun checkForUpdatesManually() {
+        if (manualCheckInProgress) return
+        manualCheckInProgress = true
+
+        manualCheckDialog = AlertDialog.Builder(activity)
+            .setTitle("Buscando actualizaciones")
+            .setMessage("Consultando la última versión disponible…")
+            .setCancelable(false)
+            .create()
+            .also { it.show() }
+
+        executor.execute {
+            val result = runCatching { fetchLatestRelease() }
+            activity.runOnUiThread {
+                manualCheckInProgress = false
+                manualCheckDialog?.dismiss()
+                manualCheckDialog = null
+
+                if (!activityResumed || activity.isFinishing ||
+                    (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed)
+                ) return@runOnUiThread
+
+                val update = result.getOrNull()
+                if (update == null) {
+                    val detail = result.exceptionOrNull()?.message
+                    showUpdateCheckError(detail ?: "No se pudo obtener una release válida desde GitHub.")
+                    return@runOnUiThread
+                }
+
+                if (isNewerVersion(update.versionName, BuildConfig.VERSION_NAME)) {
+                    pendingAvailableUpdate = update
+                    maybeShowUpdateDialog()
+                    return@runOnUiThread
+                }
+
+                AlertDialog.Builder(activity)
+                    .setTitle("Sin actualizaciones")
+                    .setMessage("Ya tenés la última versión de Entrenador Digital (${BuildConfig.VERSION_NAME}).")
+                    .setPositiveButton("Aceptar", null)
+                    .show()
+            }
+        }
+    }
     private fun fetchLatestRelease(): AvailableUpdate? {
         val connection = (URL(LATEST_RELEASE_API).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -362,6 +409,15 @@ class UpdateManager(private val activity: Activity) {
         if (!activityResumed || activity.isFinishing || (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed)) return
         AlertDialog.Builder(activity).setTitle("No se pudo actualizar").setMessage(message)
             .setPositiveButton("Aceptar", null).show()
+    }
+
+    private fun showUpdateCheckError(message: String) {
+        if (!activityResumed || activity.isFinishing || (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed)) return
+        AlertDialog.Builder(activity)
+            .setTitle("No se pudo buscar actualizaciones")
+            .setMessage(message)
+            .setPositiveButton("Aceptar", null)
+            .show()
     }
 
     private fun normalizeVersion(raw: String): String? {
