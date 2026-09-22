@@ -286,22 +286,22 @@
 }
 
 .cognitive-training-stage {
+  display: grid;
   min-height: 0;
-  padding: 4px 0 max(8px, env(safe-area-inset-bottom));
+  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
 }
 
 .cognitive-stage {
   position: relative;
   display: grid;
   width: 100%;
-  min-height: min(67vh, 720px);
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(1,156,232,.14), transparent 45%),
-    rgba(0, 14, 39, .23);
+  height: 100%;
+  min-height: 0;
+  place-items: stretch;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .cognitive-stage .countdown {
@@ -313,8 +313,8 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  place-items: center;
-  padding: clamp(10px, 2.6vw, 22px);
+  place-items: stretch;
+  padding: clamp(6px, 1.8vw, 14px) clamp(4px, 1.2vw, 10px) clamp(10px, 2.4vh, 22px);
 }
 
 .cognitive-ready {
@@ -344,12 +344,12 @@
 .cognitive-game {
   position: relative;
   display: grid;
-  width: min(100%, 720px);
+  width: min(100%, 760px);
   height: 100%;
   min-height: 0;
-  align-content: center;
+  margin: 0 auto;
   justify-items: center;
-  gap: clamp(8px, 2vh, 18px);
+  gap: clamp(8px, 1.7vh, 16px);
   color: #fff;
 }
 
@@ -373,14 +373,14 @@
 
 .binary-actions {
   display: grid;
-  width: min(100%, 440px);
+  width: min(100%, 620px);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: clamp(10px, 2.4vw, 16px);
 }
 
 .binary-actions button,
 .matrix-confirm {
-  min-height: 54px;
+  min-height: clamp(56px, 7.2vh, 70px);
   border: 1px solid rgba(255,255,255,.16);
   border-radius: 15px;
   background: rgba(255,255,255,.09);
@@ -414,7 +414,11 @@
 /* Ebb & Flow */
 
 .flow-game {
-  grid-template-rows: auto minmax(210px, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: stretch;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .flow-rule-bar {
@@ -445,22 +449,22 @@
 
 .flow-field {
   position: relative;
-  width: min(100%, 620px);
-  height: min(36vh, 310px);
-  min-height: 210px;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 24px;
+  border: 0;
+  border-radius: 0;
   background:
-    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.025) 0 1px, transparent 1px 35px),
-    linear-gradient(180deg, rgba(2,33,61,.8), rgba(2,22,48,.66));
+    radial-gradient(circle at 50% 50%, rgba(1,156,232,.11), transparent 18%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.022) 0 1px, transparent 1px 46px);
 }
 
 .flow-motion {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(46vw, 210px);
+  width: min(40vw, 220px);
   transform: translate(-50%, -50%);
 }
 
@@ -481,54 +485,46 @@
 }
 
 @keyframes flowRight {
-  from { transform: translate(calc(-50% - 31vw), -50%); }
-  to { transform: translate(calc(-50% + 31vw), -50%); }
+  from { left: 18%; }
+  to { left: 82%; }
 }
 
 @keyframes flowLeft {
-  from { transform: translate(calc(-50% + 31vw), -50%); }
-  to { transform: translate(calc(-50% - 31vw), -50%); }
+  from { left: 82%; }
+  to { left: 18%; }
 }
 
 @keyframes flowUp {
-  from { transform: translate(-50%, calc(-50% + 18vh)); }
-  to { transform: translate(-50%, calc(-50% - 18vh)); }
+  from { top: 78%; }
+  to { top: 22%; }
 }
 
 @keyframes flowDown {
-  from { transform: translate(-50%, calc(-50% - 18vh)); }
-  to { transform: translate(-50%, calc(-50% + 18vh)); }
+  from { top: 22%; }
+  to { top: 78%; }
 }
 
-.direction-pad {
-  display: grid;
-  width: min(100%, 300px);
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-areas:
-    ". up ."
-    "left down right";
-  gap: 7px;
+.flow-swipe-hint {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255,255,255,.46);
+  font-size: 9px;
+  letter-spacing: .09em;
 }
 
-.direction-answer {
-  min-height: 50px;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 14px;
-  background: rgba(255,255,255,.08);
-  color: #fff;
-  font-size: 29px;
+.flow-swipe-hint span {
+  color: rgba(255,255,255,.72);
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.flow-swipe-hint strong {
+  font-size: 9px;
   font-weight: 800;
 }
-
-.direction-answer:active {
-  background: rgba(1,156,232,.28);
-  transform: scale(.97);
-}
-
-.direction-up { grid-area: up; }
-.direction-left { grid-area: left; }
-.direction-down { grid-area: down; }
-.direction-right { grid-area: right; }
 
 /* Memory Match */
 
@@ -542,9 +538,16 @@
   text-align: center;
 }
 
+.memory-match-game {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: stretch;
+  padding-block: clamp(4px, 1vh, 10px) clamp(8px, 2vh, 20px);
+}
+
 .memory-card {
   display: grid;
-  width: min(47vw, 220px);
+  width: min(58vw, 290px);
+  max-height: min(42vh, 360px);
   aspect-ratio: .82;
   place-items: center;
   border: 5px solid rgba(255,255,255,.82);
@@ -555,7 +558,7 @@
 
 .memory-card span {
   color: var(--memory-color);
-  font-size: clamp(78px, 25vw, 150px);
+  font-size: clamp(86px, 27vw, 168px);
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 3px 0 rgba(3,30,84,.08);
@@ -564,12 +567,14 @@
 /* Memory Matrix */
 
 .matrix-game {
-  align-content: center;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: stretch;
 }
 
 .memory-grid {
   display: grid;
-  width: min(78vw, 430px);
+  width: min(84vw, 500px);
+  max-height: min(54vh, 500px);
   aspect-ratio: 1;
   grid-template-columns: repeat(var(--grid-size), minmax(0, 1fr));
   gap: clamp(5px, 1.5vw, 9px);
@@ -612,11 +617,18 @@
 
 /* Spatial Match */
 
+.spatial-game {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: stretch;
+  padding-block: clamp(4px, 1vh, 10px) clamp(8px, 2vh, 20px);
+}
+
 .spatial-pair {
   display: grid;
-  width: min(100%, 560px);
+  width: min(100%, 680px);
+  align-self: center;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: clamp(12px, 2.8vw, 20px);
 }
 
 .spatial-grid {
@@ -646,12 +658,14 @@
 /* Star Search */
 
 .star-game {
-  align-content: center;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
 }
 
 .star-board {
   display: grid;
-  width: min(100%, 570px);
+  width: min(100%, 650px);
+  align-self: center;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: clamp(5px, 1.4vw, 9px);
   padding: 10px;
@@ -687,7 +701,8 @@
 /* Rule shift / Disillusion */
 
 .rule-game {
-  align-content: center;
+  grid-template-rows: auto minmax(0, .65fr) minmax(0, 1fr) auto;
+  align-content: stretch;
 }
 
 .rule-banner {
@@ -729,7 +744,7 @@
 
 .rule-piece {
   display: grid;
-  width: clamp(74px, 22vw, 116px);
+  width: clamp(82px, 24vw, 132px);
   aspect-ratio: 1;
   place-items: center;
   clip-path: polygon(50% 0, 95% 25%, 86% 82%, 50% 100%, 14% 82%, 5% 25%);
@@ -745,7 +760,7 @@
 }
 
 .rule-target {
-  width: clamp(90px, 27vw, 134px);
+  width: clamp(102px, 30vw, 152px);
 }
 
 .rule-options {
@@ -778,7 +793,7 @@
   }
 
   .flow-field {
-    min-height: 190px;
+    min-height: 230px;
   }
 
   .cognitive-game-root {
@@ -796,13 +811,14 @@
 
 @media (orientation: landscape) and (max-height: 620px) {
   .cognitive-training-stage {
-    padding-bottom: 2px;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr);
+    padding: 0;
   }
 
   .cognitive-stage {
     min-height: 0;
-    height: calc(100vh - 105px);
-    border-radius: 18px;
+    height: 100%;
   }
 
   .cognitive-game {
@@ -811,30 +827,19 @@
   }
 
   .flow-game {
-    grid-template-columns: 1fr 220px;
-    grid-template-rows: auto 1fr auto;
-  }
-
-  .flow-rule-bar {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
   }
 
   .flow-field {
-    width: 100%;
-    height: min(49vh, 280px);
+    width: min(82vw, 680px);
+    height: 100%;
     min-height: 150px;
   }
 
-  .direction-pad {
-    width: 210px;
-  }
-
-  .flow-game .cognitive-feedback {
-    grid-column: 1 / -1;
-  }
-
   .memory-card {
-    width: min(23vw, 150px);
+    width: min(25vw, 175px);
+    max-height: 47vh;
   }
 
   .memory-match-game {
