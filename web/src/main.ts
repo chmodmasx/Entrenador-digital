@@ -21,7 +21,7 @@ import {
   type ExerciseConfig,
 } from './domain/config';
 import { DEFAULT_APP_SETTINGS, type AppSettings } from './domain/settings';
-import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
+import { getNativeAppVersion, nativeVibrate, requestNativeUpdateCheck, setNativeTrainingMode } from './platform/native-bridge';
 import { exportBackup, requestBackupImport } from './backup';
 import { profileEnhanceCurrentScreen } from './profiles';
 import { mountHomeScreen } from './screens/home';
@@ -446,6 +446,9 @@ function renderSettings(): void {
       settings[key] = enabled;
       persistSettings();
       if (key === 'sound' && settings.sound) prepareAudio();
+    },
+    onCheckUpdates: () => {
+      if (!requestNativeUpdateCheck()) showToast('La búsqueda de actualizaciones solo está disponible en Android.');
     },
     onExportBackup: () => { void exportBackup(); },
     onImportBackup: requestBackupImport,
