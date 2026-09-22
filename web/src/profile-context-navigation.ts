@@ -5,7 +5,7 @@ const RETURN_SCROLL_KEY = 'entrenador-digital-profile-return-scroll-v1';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 
-type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words';
+type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words' | 'flow' | 'memory-match' | 'memory-matrix' | 'spatial-match' | 'star-search' | 'rule-shift';
 
 const exerciseByTitle: Record<string, ExerciseId> = {
   Flechas: 'arrows',
@@ -14,6 +14,12 @@ const exerciseByTitle: Record<string, ExerciseId> = {
   'Color + número': 'color-number',
   'Color y palabra': 'stroop',
   Palabras: 'words',
+  'Ebb & Flow': 'flow',
+  'Memory Match': 'memory-match',
+  'Memory Matrix': 'memory-matrix',
+  'Spatial Match': 'spatial-match',
+  'Star Search': 'star-search',
+  Disillusion: 'rule-shift',
 };
 
 if (app) {
