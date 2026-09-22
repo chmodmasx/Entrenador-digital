@@ -103,7 +103,16 @@ export function isCognitiveExercise(value: string): value is CognitiveExerciseId
 
 export function cognitiveCardVisual(id: CognitiveExerciseId): string {
   if (id === 'flow') {
-    return '<span class="cog-card-flow"><i></i><i></i></span>';
+    return `<svg class="cog-card-flow" viewBox="0 0 96 72" aria-hidden="true">
+      <g class="flow-leaf flow-leaf-green" transform="translate(7 6) rotate(-24 28 17)">
+        <path class="flow-leaf-shape" d="M2 25C11 4 34-3 54 5C52 25 35 40 12 38C6 36 3 31 2 25Z"/>
+        <path class="flow-leaf-vein" d="M10 31C23 23 34 16 47 9"/>
+      </g>
+      <g class="flow-leaf flow-leaf-orange" transform="translate(37 30) rotate(-18 27 16)">
+        <path class="flow-leaf-shape" d="M2 24C10 5 31-2 52 5C50 23 33 37 11 36C6 34 3 30 2 24Z"/>
+        <path class="flow-leaf-vein" d="M10 29C22 22 33 15 45 9"/>
+      </g>
+    </svg>`;
   }
   if (id === 'memory-match') {
     return '<span class="cog-card-memory"><i>▲</i><i>▲</i></span>';
