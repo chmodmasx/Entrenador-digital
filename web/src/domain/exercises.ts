@@ -22,6 +22,26 @@ export const DIRECTION_IDS: DirectionId[] = [
 
 export const COLOR_IDS: ColorId[] = ['blue', 'red', 'green', 'yellow', 'orange', 'violet'];
 
+export const DIRECTION_META: Record<DirectionId, { symbol: string; label: string; rotation: number }> = {
+  up: { symbol: '↑', label: 'Arriba', rotation: 0 },
+  'up-right': { symbol: '↗', label: 'Arriba derecha', rotation: 45 },
+  right: { symbol: '→', label: 'Derecha', rotation: 90 },
+  'down-right': { symbol: '↘', label: 'Abajo derecha', rotation: 135 },
+  down: { symbol: '↓', label: 'Abajo', rotation: 180 },
+  'down-left': { symbol: '↙', label: 'Abajo izquierda', rotation: 225 },
+  left: { symbol: '←', label: 'Izquierda', rotation: 270 },
+  'up-left': { symbol: '↖', label: 'Arriba izquierda', rotation: 315 },
+};
+
+export const COLOR_META: Record<ColorId, { label: string; hex: string }> = {
+  blue: { label: 'Azul', hex: '#019CE8' },
+  red: { label: 'Rojo', hex: '#E44B4B' },
+  green: { label: 'Verde', hex: '#22A86A' },
+  yellow: { label: 'Amarillo', hex: '#F4C542' },
+  orange: { label: 'Naranja', hex: '#F28A2E' },
+  violet: { label: 'Violeta', hex: '#8A5CF6' },
+};
+
 export const DEFAULT_WORDS = ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'] as const;
 
 export interface ExerciseMeta {
