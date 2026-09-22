@@ -209,6 +209,10 @@ button:disabled {
   height: 100%;
 }
 
+.exercise-card-wrap .exercise-card small {
+  padding-right: 38px;
+}
+
 .exercise-quick-start {
   position: absolute;
   right: 8px;
