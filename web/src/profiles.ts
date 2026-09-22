@@ -116,7 +116,7 @@ const exerciseTitles: Record<ExerciseId, string> = {
   flow: 'Ebb & Flow',
   'memory-match': 'Memory Match',
   'memory-matrix': 'Memory Matrix',
-  'spatial-match': 'Spatial Match',
+  'spatial-match': 'Spatial Speed Match',
   'star-search': 'Star Search',
   'rule-shift': 'Disillusion',
 };
