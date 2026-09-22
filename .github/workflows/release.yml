@@ -143,6 +143,10 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Run web tests
+        working-directory: web
+        run: npm test
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
