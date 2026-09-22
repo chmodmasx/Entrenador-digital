@@ -405,10 +405,20 @@ function profileFieldNumber(form: HTMLFormElement, id: string): number {
 
 function profileReadBase(form: HTMLFormElement): BaseSnapshot | null {
   const repetitions = profileFieldNumber(form, 'repetitions');
+  const roundPauseInput = form.querySelector<HTMLInputElement>('#roundPause');
+  const stimulusDuration = profileFieldNumber(form, 'stimulusDuration');
+
+  if (!Number.isFinite(repetitions) || !Number.isFinite(stimulusDuration)) return null;
+
+  if (roundPauseInput) {
+    const roundPause = profileParseNumber(roundPauseInput.value);
+    if (!Number.isFinite(roundPause)) return null;
+    return { repetitions, waitMin: roundPause, waitMax: roundPause, stimulusDuration };
+  }
+
   const waitMin = profileFieldNumber(form, 'waitMin');
   const waitMax = profileFieldNumber(form, 'waitMax');
-  const stimulusDuration = profileFieldNumber(form, 'stimulusDuration');
-  if (![repetitions, waitMin, waitMax, stimulusDuration].every(Number.isFinite)) return null;
+  if (![waitMin, waitMax].every(Number.isFinite)) return null;
   return { repetitions, waitMin, waitMax, stimulusDuration };
 }
 
@@ -515,6 +525,7 @@ function profileApplyToForm(form: HTMLFormElement, snapshot: ExerciseSnapshot): 
     profileSetField(form, 'repetitions', snapshot.repetitions);
     profileSetField(form, 'waitMin', snapshot.waitMin);
     profileSetField(form, 'waitMax', snapshot.waitMax);
+    profileSetField(form, 'roundPause', Math.round(((snapshot.waitMin + snapshot.waitMax) / 2) * 10) / 10);
     profileSetField(form, 'stimulusDuration', snapshot.stimulusDuration);
 
     if (snapshot.kind === 'arrows') {

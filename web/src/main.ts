@@ -582,12 +582,30 @@ function renderConfig(): void {
 
 function sharedConfigSections(config: ExerciseConfig): string {
   const cognitive = isCognitiveExercise(config.kind);
+  const randomizedPause = !cognitive || config.kind === 'flow';
   const countUnit = cognitive ? 'rondas' : 'señales';
-  const waitTitle = cognitive ? 'Pausa entre rondas' : 'Aparición';
-  const waitSubtitle = cognitive ? 'Ajusta el intervalo antes de la siguiente ronda' : 'Evita que el ritmo sea predecible';
+  const pauseValue = Math.round(((config.waitMinMs + config.waitMaxMs) / 2000) * 10) / 10;
   const durationLabel = config.kind === 'memory-matrix'
     ? 'Tiempo para memorizar'
-    : cognitive ? 'Tiempo máximo de respuesta' : 'Duración visible';
+    : config.kind === 'star-search'
+      ? 'Tiempo máximo de búsqueda'
+      : cognitive ? 'Tiempo máximo para responder' : 'Duración visible';
+  const durationSubtitle = config.kind === 'memory-matrix'
+    ? 'Cuánto tiempo permanece visible la matriz'
+    : cognitive ? 'Límite de tiempo de cada ronda' : 'Cuánto tiempo permanece visible cada señal';
+
+  const timingSection = randomizedPause
+    ? `
+      <section class="settings-card">
+        <div class="section-title"><span>◴</span><div><h2>${cognitive ? 'Pausa entre rondas' : 'Aparición'}</h2><p>${cognitive ? 'Varía el inicio para que el ritmo no sea predecible' : 'Evita que el ritmo sea predecible'}</p></div></div>
+        ${stepper('waitMin', 'Espera mínima', config.waitMinMs / 1000, 's', 0.1, 15, 0.1)}
+        ${stepper('waitMax', 'Espera máxima', config.waitMaxMs / 1000, 's', 0.2, 20, 0.1)}
+      </section>`
+    : `
+      <section class="settings-card">
+        <div class="section-title"><span>◴</span><div><h2>Pausa entre rondas</h2><p>Tiempo fijo antes de comenzar la siguiente ronda</p></div></div>
+        ${stepper('roundPause', 'Duración de la pausa', pauseValue, 's', 0.1, 10, 0.1)}
+      </section>`;
 
   return `
     <section class="settings-card">
@@ -595,14 +613,10 @@ function sharedConfigSections(config: ExerciseConfig): string {
       ${stepper('repetitions', cognitive ? 'Cantidad de rondas' : 'Cantidad de estímulos', config.repetitions, countUnit, 2, 200, 1)}
     </section>
 
-    <section class="settings-card">
-      <div class="section-title"><span>◴</span><div><h2>${waitTitle}</h2><p>${waitSubtitle}</p></div></div>
-      ${stepper('waitMin', 'Espera mínima', config.waitMinMs / 1000, 's', 0.1, 15, 0.1)}
-      ${stepper('waitMax', 'Espera máxima', config.waitMaxMs / 1000, 's', 0.2, 20, 0.1)}
-    </section>
+    ${timingSection}
 
     <section class="settings-card">
-      <div class="section-title"><span>ϟ</span><div><h2>${cognitive ? 'Ronda' : 'Estímulo'}</h2><p>${cognitive ? 'Controla el tiempo disponible en cada desafío' : 'Controla cuánto tiempo permanece visible'}</p></div></div>
+      <div class="section-title"><span>ϟ</span><div><h2>${cognitive ? 'Ronda' : 'Estímulo'}</h2><p>${durationSubtitle}</p></div></div>
       ${stepper('stimulusDuration', durationLabel, config.stimulusDurationMs / 1000, 's', 0.2, 12, 0.1)}
     </section>`;
 }
@@ -806,13 +820,32 @@ function numberInput(id: string): number {
 
 function readBaseConfig(): BaseConfig | null {
   const repetitions = numberInput('repetitions');
-  const waitMin = numberInput('waitMin');
-  const waitMax = numberInput('waitMax');
+  const roundPauseInput = app.querySelector<HTMLInputElement>('#roundPause');
   const stimulusDuration = numberInput('stimulusDuration');
 
-  if (!Number.isFinite(repetitions) || repetitions < 2) return showConfigError('La cantidad de estímulos debe ser de al menos 2.');
-  if (!Number.isFinite(waitMin) || !Number.isFinite(waitMax) || waitMax <= waitMin) return showConfigError('La espera máxima debe ser mayor que la mínima.');
-  if (!Number.isFinite(stimulusDuration) || stimulusDuration <= 0) return showConfigError('La duración visible debe ser mayor que cero.');
+  if (!Number.isFinite(repetitions) || repetitions < 2) {
+    return showConfigError(isCognitiveExercise(selectedExercise)
+      ? 'La sesión debe tener al menos 2 rondas.'
+      : 'La sesión debe tener al menos 2 estímulos.');
+  }
+  if (!Number.isFinite(stimulusDuration) || stimulusDuration <= 0) return showConfigError('El tiempo debe ser mayor que cero.');
+
+  if (roundPauseInput) {
+    const roundPause = Number(roundPauseInput.value);
+    if (!Number.isFinite(roundPause) || roundPause <= 0) return showConfigError('La pausa entre rondas debe ser mayor que cero.');
+    return {
+      repetitions: Math.round(repetitions),
+      waitMinMs: Math.round(roundPause * 1000),
+      waitMaxMs: Math.round(roundPause * 1000),
+      stimulusDurationMs: Math.round(stimulusDuration * 1000),
+    };
+  }
+
+  const waitMin = numberInput('waitMin');
+  const waitMax = numberInput('waitMax');
+  if (!Number.isFinite(waitMin) || !Number.isFinite(waitMax) || waitMax <= waitMin) {
+    return showConfigError('La espera máxima debe ser mayor que la mínima.');
+  }
 
   return {
     repetitions: Math.round(repetitions),
@@ -1279,7 +1312,7 @@ function renderResults(): void {
       <section class="session-detail-card">
         <h2>Configuración utilizada</h2>
         <dl class="session-detail-list">
-          <div><dt>${isCognitiveExercise(session.exercise) ? 'Pausa entre rondas' : 'Espera entre señales'}</dt><dd>${formatSeconds(session.config.waitMinMs)} – ${formatSeconds(session.config.waitMaxMs)}</dd></div>
+          <div><dt>${isCognitiveExercise(session.exercise) ? 'Pausa entre rondas' : 'Espera entre señales'}</dt><dd>${formatWait(session.config.waitMinMs, session.config.waitMaxMs)}</dd></div>
           ${specificResultDetails(session.config)}
         </dl>
       </section>
@@ -1696,6 +1729,11 @@ function formatSeconds(milliseconds: number): string {
 function formatMilliseconds(milliseconds: number): string {
   if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
   return `${(milliseconds / 1000).toFixed(2).replace('.', ',')} s`;
+}
+
+function formatWait(minimumMs: number, maximumMs: number): string {
+  if (Math.abs(maximumMs - minimumMs) < 1) return formatSeconds(minimumMs);
+  return `${formatSeconds(minimumMs)} – ${formatSeconds(maximumMs)}`;
 }
 
 function createId(): string {

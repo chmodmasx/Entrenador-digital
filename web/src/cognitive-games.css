@@ -39,10 +39,11 @@
   width: 100%;
   min-width: 0;
   gap: 18px;
-  padding-inline: 7px;
+  padding: 14px 10px 28px;
+  margin: -14px 0 -14px;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-padding-inline: 7px;
+  scroll-padding-inline: 10px;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   overscroll-behavior-x: contain;
@@ -55,9 +56,9 @@
 }
 
 .exercise-page {
-  width: calc(100% - 14px);
-  min-width: calc(100% - 14px);
-  flex: 0 0 calc(100% - 14px);
+  width: calc(100% - 20px);
+  min-width: calc(100% - 20px);
+  flex: 0 0 calc(100% - 20px);
   box-sizing: border-box;
   scroll-snap-align: center;
   scroll-snap-stop: always;
@@ -702,19 +703,22 @@
 }
 
 .star-board {
-  display: grid;
-  width: min(100%, 650px);
+  display: flex;
+  width: min(82vw, 470px);
   align-self: center;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: clamp(5px, 1.4vw, 9px);
-  padding: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: clamp(8px, 2vw, 12px);
+  padding: clamp(10px, 2.5vw, 14px);
   border: 1px solid rgba(255,255,255,.06);
-  border-radius: 22px;
+  border-radius: 24px;
   background: linear-gradient(180deg, #0b4f5a, #083b4d);
 }
 
 .star-item {
   display: grid;
+  flex: 0 0 calc((100% - 24px) / 3);
   aspect-ratio: 1;
   min-width: 0;
   place-items: center;
@@ -740,73 +744,66 @@
 /* Rule shift / Disillusion */
 
 .rule-game {
-  grid-template-rows: auto minmax(0, .65fr) minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, .8fr) minmax(0, 1fr) auto;
   align-content: stretch;
 }
 
-.rule-banner {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  min-width: 150px;
-  padding: 8px 18px;
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 14px;
+.rule-instruction {
+  align-self: start;
+  min-width: min(84vw, 360px);
+  padding: 11px 18px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 15px;
   background: rgba(255,255,255,.055);
-}
-
-.rule-banner small {
-  color: rgba(255,255,255,.5);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: .13em;
-}
-
-.rule-banner strong {
   color: #fff;
-  font-size: 21px;
-  letter-spacing: .07em;
+  font-size: clamp(16px, 4.6vw, 22px);
+  font-weight: 850;
+  letter-spacing: .035em;
+  text-align: center;
 }
 
 .rule-target-wrap {
   display: grid;
+  align-self: center;
   justify-items: center;
-  gap: 5px;
-}
-
-.rule-target-wrap > span {
-  color: rgba(255,255,255,.6);
-  font-size: 9px;
-  font-weight: 750;
-  text-transform: uppercase;
 }
 
 .rule-piece {
-  display: grid;
-  width: clamp(82px, 24vw, 132px);
+  display: block;
+  width: clamp(82px, 23vw, 128px);
   aspect-ratio: 1;
-  place-items: center;
-  clip-path: polygon(50% 0, 95% 25%, 86% 82%, 50% 100%, 14% 82%, 5% 25%);
   background: var(--piece-color);
-  box-shadow: inset 0 2px rgba(255,255,255,.2);
+  box-shadow:
+    inset 0 2px rgba(255,255,255,.18),
+    0 12px 24px rgba(0,0,0,.12);
 }
 
-.rule-piece b {
-  color: #fff;
-  font-size: clamp(40px, 13vw, 68px);
-  font-weight: 900;
-  line-height: 1;
+.rule-shape-circle {
+  border-radius: 50%;
+}
+
+.rule-shape-triangle {
+  clip-path: polygon(50% 3%, 97% 92%, 3% 92%);
+}
+
+.rule-shape-square {
+  border-radius: 13%;
+}
+
+.rule-shape-diamond {
+  clip-path: polygon(50% 2%, 98% 50%, 50% 98%, 2% 50%);
 }
 
 .rule-target {
-  width: clamp(102px, 30vw, 152px);
+  width: clamp(118px, 31vw, 168px);
 }
 
 .rule-options {
   display: flex;
-  width: min(100%, 560px);
+  width: min(100%, 600px);
+  align-self: center;
   justify-content: center;
-  gap: clamp(7px, 2vw, 13px);
+  gap: clamp(14px, 4vw, 24px);
 }
 
 .rule-options button {
@@ -840,11 +837,11 @@
   }
 
   .star-board {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: min(86vw, 430px);
   }
 
   .rule-options {
-    gap: 4px;
+    gap: 9px;
   }
 }
 
@@ -916,7 +913,13 @@
   }
 
   .star-board {
-    width: min(64vw, 560px);
+    width: min(70vw, 580px);
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .star-item {
+    flex-basis: calc((100% - 32px) / 5);
   }
 
   .star-item span {
@@ -924,11 +927,11 @@
   }
 
   .rule-piece {
-    width: min(16vh, 86px);
+    width: min(17vh, 92px);
   }
 
   .rule-target {
-    width: min(19vh, 102px);
+    width: min(21vh, 112px);
   }
 }
 
