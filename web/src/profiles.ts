@@ -17,6 +17,15 @@ import { normalizeStoredExerciseConfig } from './domain/profile-migration';
 type ExerciseSnapshot = ExerciseConfig;
 type SnapshotMap = ConfigMap;
 
+interface TrainingProfile {
+  schemaVersion: 2;
+  id: string;
+  name: string;
+  configs: SnapshotMap;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface SessionRecord {
   id?: string;
   finishedAt?: string;
