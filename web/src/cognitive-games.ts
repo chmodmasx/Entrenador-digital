@@ -90,12 +90,12 @@ export const cognitiveMeta: Record<CognitiveExerciseId, CognitiveMeta> = {
 };
 
 export const cognitiveDefaults: Record<CognitiveExerciseId, CognitiveConfig> = {
-  flow: DEFAULT_CONFIGS.flow,
-  'memory-match': DEFAULT_CONFIGS['memory-match'],
-  'memory-matrix': DEFAULT_CONFIGS['memory-matrix'],
-  'spatial-match': DEFAULT_CONFIGS['spatial-match'],
-  'star-search': DEFAULT_CONFIGS['star-search'],
-  'rule-shift': DEFAULT_CONFIGS['rule-shift'],
+  flow: DEFAULT_CONFIGS.flow as FlowConfig,
+  'memory-match': DEFAULT_CONFIGS['memory-match'] as MemoryMatchConfig,
+  'memory-matrix': DEFAULT_CONFIGS['memory-matrix'] as MemoryMatrixConfig,
+  'spatial-match': DEFAULT_CONFIGS['spatial-match'] as SpatialMatchConfig,
+  'star-search': DEFAULT_CONFIGS['star-search'] as StarSearchConfig,
+  'rule-shift': DEFAULT_CONFIGS['rule-shift'] as RuleShiftConfig,
 };
 export function isCognitiveExercise(value: string): value is CognitiveExerciseId {
   return isCognitiveExerciseId(value);
