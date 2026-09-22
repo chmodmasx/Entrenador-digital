@@ -309,7 +309,13 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
   let round = 0;
   let timer: number | undefined;
   let roundStartedAt = 0;
+  let stopFlowAnimation: (() => void) | undefined;
   const memorySequence: Array<{ symbol: string; color: string; key: string }> = [];
+
+  const stopFlowMotion = () => {
+    stopFlowAnimation?.();
+    stopFlowAnimation = undefined;
+  };
 
   const clearTimer = () => {
     if (timer !== undefined) window.clearTimeout(timer);
@@ -319,6 +325,7 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
   const finish = () => {
     if (stopped) return;
     clearTimer();
+    stopFlowMotion();
     active = false;
     onComplete();
   };
@@ -377,7 +384,6 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
   };
 
   const beginFlow = () => {
-    const flowConfig = config as FlowConfig;
     const leafColor = Math.random() < 0.5 ? 'green' : 'orange';
     const orientation = randomItem(DIRECTIONS);
     let movement = randomItem(DIRECTIONS);
@@ -387,23 +393,30 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
     const expected = leafColor === 'green' ? orientation : movement;
     const stimulus = `${leafColor === 'green' ? 'Verde' : 'Naranja'} · apunta ${DIRECTION_LABELS[orientation]} · mueve ${DIRECTION_LABELS[movement]}`;
 
-    const leafCount = randomInteger(4, 7);
-    const leafMarkup = createFlowLeafLayout(leafCount, movement).map((leaf) => `
-      <div class="flow-leaf-item flow-leaf-item-${movement}"
-           style="--leaf-x:${leaf.x}%;--leaf-y:${leaf.y}%;--leaf-scale:${leaf.scale};--flow-duration:${Math.max(900, flowConfig.stimulusDurationMs)}ms">
+    stopFlowMotion();
+    const leafMarkup = createFlowLeafLayout().map((leaf) => `
+      <div class="flow-leaf-item"
+           data-flow-leaf
+           data-flow-x="${leaf.x}"
+           data-flow-y="${leaf.y}"
+           data-flow-scale="${leaf.scale}"
+           style="--leaf-scale:${leaf.scale};--leaf-delay:${leaf.delayMs}ms">
         ${leafSvg(orientation, FLOW_COLORS[leafColor])}
       </div>`
     ).join('');
 
     root.innerHTML = `
       <div class="cognitive-game flow-game" data-flow-swipe aria-label="Deslizá en la dirección correcta">
-        <div class="flow-rule-bar"><span><i class="flow-rule-dot green"></i>VERDE = hoja</span><span><i class="flow-rule-dot orange"></i>NARANJA = movimiento</span></div>
+        <div class="flow-rule-bar"><span><i class="flow-rule-dot green"></i>VERDE = punta</span><span><i class="flow-rule-dot orange"></i>NARANJA = movimiento</span></div>
         <div class="flow-field">
           <div class="flow-swarm">${leafMarkup}</div>
         </div>
         <div class="cognitive-feedback" data-feedback></div>
         <div class="flow-swipe-hint" aria-hidden="true"><span>↕</span><strong>DESLIZÁ PARA RESPONDER</strong><span>↔</span></div>
       </div>`;
+
+    const field = root.querySelector<HTMLElement>('.flow-field');
+    if (field) stopFlowAnimation = startFlowMotion(field, movement);
 
     const swipeSurface = root.querySelector<HTMLElement>('[data-flow-swipe]');
     if (swipeSurface) {
@@ -639,6 +652,7 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
       stopped = true;
       active = false;
       clearTimer();
+      stopFlowMotion();
       root.innerHTML = '';
     },
   };
@@ -689,62 +703,85 @@ interface FlowLeafPlacement {
   x: number;
   y: number;
   scale: number;
+  delayMs: number;
 }
 
-function createFlowLeafLayout(count: number, movement: CardinalDirection): FlowLeafPlacement[] {
-  const horizontal = movement === 'left' || movement === 'right';
-  const xRange: [number, number] = movement === 'right'
-    ? [18, 55]
-    : movement === 'left'
-      ? [45, 82]
-      : [15, 85];
-  const yRange: [number, number] = movement === 'down'
-    ? [18, 55]
-    : movement === 'up'
-      ? [45, 82]
-      : [14, 82];
+const FLOW_SPEED_PX_PER_SECOND = 96;
+const FLOW_COLUMNS = 3;
+const FLOW_ROWS = 4;
 
-  for (const minimumDistance of [23, 21, 19, 17]) {
-    const placed: FlowLeafPlacement[] = [];
-    let attempts = 0;
+function createFlowLeafLayout(): FlowLeafPlacement[] {
+  const columnStep = 100 / FLOW_COLUMNS;
+  const rowStep = 100 / FLOW_ROWS;
+  const phaseX = randomBetweenFloat(0, columnStep);
+  const phaseY = randomBetweenFloat(0, rowStep);
+  const leaves: FlowLeafPlacement[] = [];
 
-    while (placed.length < count && attempts < 700) {
-      attempts += 1;
-      const candidate: FlowLeafPlacement = {
-        x: randomBetweenFloat(xRange[0], xRange[1]),
-        y: randomBetweenFloat(yRange[0], yRange[1]),
-        scale: randomBetweenFloat(0.88, 1.08),
-      };
-
-      const separated = placed.every((leaf) => {
-        const dx = candidate.x - leaf.x;
-        const dy = candidate.y - leaf.y;
-        const distance = Math.hypot(dx, dy);
-        const scaleAllowance = 0.5 * (candidate.scale + leaf.scale);
-        return distance >= minimumDistance * scaleAllowance;
+  for (let row = 0; row < FLOW_ROWS; row += 1) {
+    const stagger = row % 2 === 0 ? 0 : columnStep / 2;
+    for (let column = 0; column < FLOW_COLUMNS; column += 1) {
+      leaves.push({
+        x: wrapFlowCoordinate(
+          phaseX + stagger + column * columnStep + randomBetweenFloat(-1.6, 1.6),
+          100,
+        ),
+        y: wrapFlowCoordinate(
+          phaseY + row * rowStep + randomBetweenFloat(-1.2, 1.2),
+          100,
+        ),
+        scale: randomBetweenFloat(0.94, 1.06),
+        delayMs: randomInteger(0, 45),
       });
-
-      if (separated) placed.push(candidate);
     }
-
-    if (placed.length === count) return placed;
   }
 
-  const fallback = horizontal
-    ? [
-        { x: 22, y: 24 }, { x: 42, y: 48 }, { x: 24, y: 70 },
-        { x: 52, y: 20 }, { x: 50, y: 72 }, { x: 33, y: 36 }, { x: 34, y: 60 },
-      ]
-    : [
-        { x: 24, y: 22 }, { x: 48, y: 42 }, { x: 72, y: 24 },
-        { x: 22, y: 52 }, { x: 72, y: 54 }, { x: 38, y: 30 }, { x: 58, y: 62 },
-      ];
+  return leaves;
+}
 
-  return fallback.slice(0, count).map((leaf, index) => ({
-    x: movement === 'left' ? 100 - leaf.x : leaf.x,
-    y: movement === 'up' ? 100 - leaf.y : leaf.y,
-    scale: 0.92 + (index % 3) * 0.06,
+function startFlowMotion(field: HTMLElement, movement: CardinalDirection): () => void {
+  const items = Array.from(field.querySelectorAll<HTMLElement>('[data-flow-leaf]')).map((element) => ({
+    element,
+    x: Number(element.dataset.flowX ?? 0),
+    y: Number(element.dataset.flowY ?? 0),
+    scale: Number(element.dataset.flowScale ?? 1),
   }));
+
+  let animationFrame = 0;
+  let startedAt = 0;
+  let stopped = false;
+
+  const animate = (now: number) => {
+    if (stopped) return;
+    if (startedAt === 0) startedAt = now;
+
+    const width = field.clientWidth;
+    const height = field.clientHeight;
+    if (width > 0 && height > 0) {
+      const distance = ((now - startedAt) / 1000) * FLOW_SPEED_PX_PER_SECOND;
+      const deltaX = movement === 'right' ? distance : movement === 'left' ? -distance : 0;
+      const deltaY = movement === 'down' ? distance : movement === 'up' ? -distance : 0;
+
+      items.forEach((leaf) => {
+        const x = wrapFlowCoordinate((leaf.x / 100) * width + deltaX, width);
+        const y = wrapFlowCoordinate((leaf.y / 100) * height + deltaY, height);
+        leaf.element.style.transform =
+          `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${leaf.scale})`;
+      });
+    }
+
+    animationFrame = window.requestAnimationFrame(animate);
+  };
+
+  animationFrame = window.requestAnimationFrame(animate);
+  return () => {
+    stopped = true;
+    window.cancelAnimationFrame(animationFrame);
+  };
+}
+
+function wrapFlowCoordinate(value: number, span: number): number {
+  if (span <= 0) return 0;
+  return ((value % span) + span) % span;
 }
 
 function leafSvg(direction: CardinalDirection, color: string): string {
@@ -752,10 +789,12 @@ function leafSvg(direction: CardinalDirection, color: string): string {
   return `
     <svg class="flow-leaf" viewBox="0 0 180 180" style="--leaf-color:${color};--leaf-rotation:${rotation[direction]}deg" aria-hidden="true">
       <g class="flow-leaf-rotator">
-        <path d="M28 90C55 51 105 43 169 90C109 137 57 130 28 90Z" fill="var(--leaf-color)"/>
-        <path d="M28 90C73 86 119 87 158 90" fill="none" stroke="rgba(255,255,255,.78)" stroke-width="3.4" stroke-linecap="round"/>
-        <path d="M66 87 86 68M94 87 116 67M66 94 87 110M99 93 121 108" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.1" stroke-linecap="round"/>
-        <path d="M28 90H10" fill="none" stroke="var(--leaf-color)" stroke-width="7" stroke-linecap="round"/>
+        <path d="M28 90C55 51 105 43 169 90C109 137 57 130 28 90Z"
+              fill="var(--leaf-color)" stroke="rgba(255,255,255,.92)" stroke-width="3.4" stroke-linejoin="round"/>
+        <path d="M28 90C73 86 119 87 158 90" fill="none" stroke="rgba(255,255,255,.82)" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M66 87 86 68M94 87 116 67M66 94 87 110M99 93 121 108" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2.1" stroke-linecap="round"/>
+        <path d="M28 90H10" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="11" stroke-linecap="round"/>
+        <path d="M28 90H10" fill="none" stroke="var(--leaf-color)" stroke-width="6.5" stroke-linecap="round"/>
       </g>
     </svg>`;
 }
