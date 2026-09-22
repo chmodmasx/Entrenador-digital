@@ -2,6 +2,7 @@ import './cognitive-games.css';
 import { renderStepper } from './components/stepper';
 import {
   DEFAULT_CONFIGS,
+  type BaseConfig as CognitiveBaseConfig,
   type CognitiveConfig,
   type FlowConfig,
   type MemoryMatchConfig,
