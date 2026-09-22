@@ -19,7 +19,7 @@ import {
 } from './cognitive-games';
 import { timingPolicy } from './training-timing';
 import { bindSteppers, parseLocaleNumber, renderStepper } from './components/stepper';
-import { EXERCISE_IDS, EXERCISE_META, type ExerciseId } from './domain/exercises';
+import { EXERCISE_IDS, EXERCISE_META, type CognitiveExerciseId, type ExerciseId } from './domain/exercises';
 import { validateBaseTrainingValues } from './domain/validation';
 import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
 import { exportBackup, requestBackupImport } from './backup';
