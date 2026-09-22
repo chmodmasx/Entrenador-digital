@@ -203,6 +203,23 @@ export const DEFAULT_CONFIGS: ConfigMap = {
   },
 };
 
+export function setExerciseConfig(map: ConfigMap, config: ExerciseConfig): void {
+  switch (config.kind) {
+    case 'arrows': map.arrows = config; break;
+    case 'numbers': map.numbers = config; break;
+    case 'colors': map.colors = config; break;
+    case 'color-number': map['color-number'] = config; break;
+    case 'stroop': map.stroop = config; break;
+    case 'words': map.words = config; break;
+    case 'flow': map.flow = config; break;
+    case 'memory-match': map['memory-match'] = config; break;
+    case 'memory-matrix': map['memory-matrix'] = config; break;
+    case 'spatial-match': map['spatial-match'] = config; break;
+    case 'star-search': map['star-search'] = config; break;
+    case 'rule-shift': map['rule-shift'] = config; break;
+  }
+}
+
 export function cloneConfig<T extends ExerciseConfig>(config: T): T {
   return JSON.parse(JSON.stringify(config)) as T;
 }
