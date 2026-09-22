@@ -3,7 +3,6 @@ import './passive.css';
 import './sections.css';
 import {
   cognitiveConfigSection,
-  cognitiveDefaults,
   cognitiveResultDetailLabel,
   cognitiveResultDetailValue,
   cognitiveResultDetails,
@@ -12,14 +11,12 @@ import {
   isCognitiveExercise,
   mountCognitiveGame,
   readCognitiveConfig,
-  type CognitiveConfig,
   type CognitiveController,
 } from './cognitive-games';
 import { timingPolicy } from './training-timing';
 import { bindSteppers, parseLocaleNumber, renderStepper } from './components/stepper';
 import {
   COLOR_IDS,
-  DEFAULT_WORDS,
   DIRECTION_IDS,
   EXERCISE_IDS,
   EXERCISE_META,
@@ -27,9 +24,16 @@ import {
   type ColorId,
   type DirectionId as Direction,
   type ExerciseId,
-  type StroopInstruction,
 } from './domain/exercises';
 import { validateBaseTrainingValues } from './domain/validation';
+import {
+  DEFAULT_CONFIGS,
+  cloneConfig,
+  cloneConfigMap,
+  type BaseConfig,
+  type CognitiveConfig,
+  type ExerciseConfig,
+} from './domain/config';
 import { DEFAULT_APP_SETTINGS, type AppSettings } from './domain/settings';
 import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
 import { exportBackup, requestBackupImport } from './backup';
@@ -46,50 +50,6 @@ import {
 
 
 type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'settings';
-
-interface BaseConfig {
-  repetitions: number;
-  waitMinMs: number;
-  waitMaxMs: number;
-  stimulusDurationMs: number;
-}
-
-interface ArrowsConfig extends BaseConfig {
-  kind: 'arrows';
-  directions: Direction[];
-}
-
-interface NumbersConfig extends BaseConfig {
-  kind: 'numbers';
-  minNumber: number;
-  maxNumber: number;
-}
-
-interface ColorsConfig extends BaseConfig {
-  kind: 'colors';
-  colors: ColorId[];
-}
-
-interface ColorNumberConfig extends BaseConfig {
-  kind: 'color-number';
-  minNumber: number;
-  maxNumber: number;
-  colors: ColorId[];
-}
-
-interface StroopConfig extends BaseConfig {
-  kind: 'stroop';
-  colors: ColorId[];
-  instruction: StroopInstruction;
-  allowMatches: boolean;
-}
-
-interface WordsConfig extends BaseConfig {
-  kind: 'words';
-  words: string[];
-}
-
-type ExerciseConfig = ArrowsConfig | NumbersConfig | ColorsConfig | ColorNumberConfig | StroopConfig | WordsConfig | CognitiveConfig;
 
 interface Stimulus {
   key: string;
@@ -170,98 +130,18 @@ const colorOrder: ColorId[] = [...COLOR_IDS];
 
 const exerciseMeta = EXERCISE_META;
 
-function defaultTiming(kind: ExerciseId): Pick<BaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
-  const policy = timingPolicy(kind);
-  return {
-    waitMinMs: Math.round(policy.defaultWaitMin * 1000),
-    waitMaxMs: Math.round(policy.defaultWaitMax * 1000),
-    stimulusDurationMs: Math.round(policy.defaultDuration * 1000),
-  };
-}
-
-const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
-  arrows: {
-    kind: 'arrows',
-    repetitions: 20,
-    ...defaultTiming('arrows'),
-    directions: [...directionOrder],
-  },
-  numbers: {
-    kind: 'numbers',
-    repetitions: 20,
-    ...defaultTiming('numbers'),
-    minNumber: 1,
-    maxNumber: 9,
-  },
-  colors: {
-    kind: 'colors',
-    repetitions: 20,
-    ...defaultTiming('colors'),
-    colors: [...colorOrder],
-  },
-  'color-number': {
-    kind: 'color-number',
-    repetitions: 20,
-    ...defaultTiming('color-number'),
-    minNumber: 1,
-    maxNumber: 9,
-    colors: [...colorOrder],
-  },
-  stroop: {
-    kind: 'stroop',
-    repetitions: 20,
-    ...defaultTiming('stroop'),
-    colors: [...colorOrder],
-    instruction: 'ink',
-    allowMatches: false,
-  },
-  words: {
-    kind: 'words',
-    repetitions: 20,
-    ...defaultTiming('words'),
-    words: [...DEFAULT_WORDS],
-  },
-  flow: cognitiveDefaults.flow,
-  'memory-match': cognitiveDefaults['memory-match'],
-  'memory-matrix': cognitiveDefaults['memory-matrix'],
-  'spatial-match': cognitiveDefaults['spatial-match'],
-  'star-search': cognitiveDefaults['star-search'],
-  'rule-shift': cognitiveDefaults['rule-shift'],
-};
-
 const SETTINGS_KEY = 'entrenador-digital-settings-v1';
 const defaultSettings: AppSettings = { ...DEFAULT_APP_SETTINGS };
 
 let settings = loadSettings();
 let screen: Screen = 'home';
 let selectedExercise: ExerciseId = 'arrows';
-let configs: Record<ExerciseId, ExerciseConfig> = cloneConfigMap(defaultConfigs);
+let configs = cloneConfigMap(DEFAULT_CONFIGS);
 let runtime: RuntimeSession | null = null;
 let cognitiveController: CognitiveController | null = null;
 let lastSession: StoredSession | null = null;
 let audioContext: AudioContext | null = null;
 let quickStartRequested = false;
-
-function cloneConfig<T extends ExerciseConfig>(config: T): T {
-  return JSON.parse(JSON.stringify(config)) as T;
-}
-
-function cloneConfigMap(source: Record<ExerciseId, ExerciseConfig>): Record<ExerciseId, ExerciseConfig> {
-  return {
-    arrows: cloneConfig(source.arrows),
-    numbers: cloneConfig(source.numbers),
-    colors: cloneConfig(source.colors),
-    'color-number': cloneConfig(source['color-number']),
-    stroop: cloneConfig(source.stroop),
-    words: cloneConfig(source.words),
-    flow: cloneConfig(source.flow),
-    'memory-match': cloneConfig(source['memory-match']),
-    'memory-matrix': cloneConfig(source['memory-matrix']),
-    'spatial-match': cloneConfig(source['spatial-match']),
-    'star-search': cloneConfig(source['star-search']),
-    'rule-shift': cloneConfig(source['rule-shift']),
-  };
-}
 
 function loadSettings(): AppSettings {
   try {
