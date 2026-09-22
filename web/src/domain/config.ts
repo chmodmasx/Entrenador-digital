@@ -98,7 +98,21 @@ export type CognitiveConfig =
   | RuleShiftConfig;
 
 export type ExerciseConfig = PassiveConfig | CognitiveConfig;
-export type ConfigMap = Record<ExerciseId, ExerciseConfig>;
+
+export interface ConfigMap {
+  arrows: ArrowsConfig;
+  numbers: NumbersConfig;
+  colors: ColorsConfig;
+  'color-number': ColorNumberConfig;
+  stroop: StroopConfig;
+  words: WordsConfig;
+  flow: FlowConfig;
+  'memory-match': MemoryMatchConfig;
+  'memory-matrix': MemoryMatrixConfig;
+  'spatial-match': SpatialMatchConfig;
+  'star-search': StarSearchConfig;
+  'rule-shift': RuleShiftConfig;
+}
 
 export function defaultTiming(kind: ExerciseId): Pick<BaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
   const policy = timingPolicy(kind);
