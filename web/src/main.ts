@@ -19,7 +19,18 @@ import {
 } from './cognitive-games';
 import { timingPolicy } from './training-timing';
 import { bindSteppers, parseLocaleNumber, renderStepper } from './components/stepper';
-import { EXERCISE_IDS, EXERCISE_META, type CognitiveExerciseId, type ExerciseId } from './domain/exercises';
+import {
+  COLOR_IDS,
+  DEFAULT_WORDS,
+  DIRECTION_IDS,
+  EXERCISE_IDS,
+  EXERCISE_META,
+  type CognitiveExerciseId,
+  type ColorId,
+  type DirectionId as Direction,
+  type ExerciseId,
+  type StroopInstruction,
+} from './domain/exercises';
 import { validateBaseTrainingValues } from './domain/validation';
 import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
 import { exportBackup, requestBackupImport } from './backup';
@@ -33,19 +44,8 @@ import {
   putRecord as dbPutRecord,
 } from './storage/database';
 
-type Direction =
-  | 'up'
-  | 'up-right'
-  | 'right'
-  | 'down-right'
-  | 'down'
-  | 'down-left'
-  | 'left'
-  | 'up-left';
 
-type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
 type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'presets' | 'settings';
-type StroopInstruction = 'ink' | 'word';
 
 interface BaseConfig {
   repetitions: number;
@@ -170,7 +170,7 @@ const directions: Record<Direction, { symbol: string; label: string; rotation: n
   'up-left': { symbol: '↖', label: 'Arriba izquierda', rotation: 315 },
 };
 
-const directionOrder = Object.keys(directions) as Direction[];
+const directionOrder: Direction[] = [...DIRECTION_IDS];
 
 const colors: Record<ColorId, { label: string; hex: string }> = {
   blue: { label: 'Azul', hex: '#019CE8' },
@@ -181,7 +181,7 @@ const colors: Record<ColorId, { label: string; hex: string }> = {
   violet: { label: 'Violeta', hex: '#8A5CF6' },
 };
 
-const colorOrder = Object.keys(colors) as ColorId[];
+const colorOrder: ColorId[] = [...COLOR_IDS];
 
 const exerciseMeta = EXERCISE_META;
 
@@ -234,7 +234,7 @@ const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
     kind: 'words',
     repetitions: 20,
     ...defaultTiming('words'),
-    words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
+    words: [...DEFAULT_WORDS],
   },
   flow: cognitiveDefaults.flow,
   'memory-match': cognitiveDefaults['memory-match'],
