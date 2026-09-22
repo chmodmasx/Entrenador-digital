@@ -1,6 +1,6 @@
 export {};
 
-type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words';
+type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words' | 'flow' | 'memory-match' | 'memory-matrix' | 'spatial-match' | 'star-search' | 'rule-shift';
 type DirectionId = 'up' | 'up-right' | 'right' | 'down-right' | 'down' | 'down-left' | 'left' | 'up-left';
 type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
 type StroopMode = 'ink' | 'word';
@@ -47,7 +47,37 @@ interface WordsSnapshot extends BaseSnapshot {
   words: string[];
 }
 
-type ExerciseSnapshot = ArrowsSnapshot | NumbersSnapshot | ColorsSnapshot | ColorNumberSnapshot | StroopSnapshot | WordsSnapshot;
+interface FlowSnapshot extends BaseSnapshot {
+  kind: 'flow';
+}
+
+interface MemoryMatchSnapshot extends BaseSnapshot {
+  kind: 'memory-match';
+  nBack: number;
+}
+
+interface MemoryMatrixSnapshot extends BaseSnapshot {
+  kind: 'memory-matrix';
+  gridSize: number;
+  memoryCells: number;
+}
+
+interface SpatialMatchSnapshot extends BaseSnapshot {
+  kind: 'spatial-match';
+  itemCount: number;
+}
+
+interface StarSearchSnapshot extends BaseSnapshot {
+  kind: 'star-search';
+  pairCount: number;
+}
+
+interface RuleShiftSnapshot extends BaseSnapshot {
+  kind: 'rule-shift';
+  optionCount: number;
+}
+
+type ExerciseSnapshot = ArrowsSnapshot | NumbersSnapshot | ColorsSnapshot | ColorNumberSnapshot | StroopSnapshot | WordsSnapshot | FlowSnapshot | MemoryMatchSnapshot | MemoryMatrixSnapshot | SpatialMatchSnapshot | StarSearchSnapshot | RuleShiftSnapshot;
 type SnapshotMap = Record<ExerciseId, ExerciseSnapshot>;
 
 interface TrainingProfile {
@@ -83,6 +113,12 @@ const exerciseTitles: Record<ExerciseId, string> = {
   'color-number': 'Color + número',
   stroop: 'Color y palabra',
   words: 'Palabras',
+  flow: 'Ebb & Flow',
+  'memory-match': 'Memory Match',
+  'memory-matrix': 'Memory Matrix',
+  'spatial-match': 'Spatial Speed Match',
+  'star-search': 'Star Search',
+  'rule-shift': 'Disillusion',
 };
 
 const allDirections: DirectionId[] = ['up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left'];
@@ -130,6 +166,24 @@ function profileDefaults(): SnapshotMap {
     words: {
       kind: 'words', repetitions: 20, waitMin: 0.8, waitMax: 2.3, stimulusDuration: 1.1,
       words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
+    },
+    flow: {
+      kind: 'flow', repetitions: 20, waitMin: 0.3, waitMax: 0.7, stimulusDuration: 2.8,
+    },
+    'memory-match': {
+      kind: 'memory-match', repetitions: 24, waitMin: 0.25, waitMax: 0.55, stimulusDuration: 2.8, nBack: 2,
+    },
+    'memory-matrix': {
+      kind: 'memory-matrix', repetitions: 12, waitMin: 0.35, waitMax: 0.7, stimulusDuration: 1.2, gridSize: 4, memoryCells: 5,
+    },
+    'spatial-match': {
+      kind: 'spatial-match', repetitions: 20, waitMin: 0.25, waitMax: 0.55, stimulusDuration: 2.6, itemCount: 4,
+    },
+    'star-search': {
+      kind: 'star-search', repetitions: 12, waitMin: 0.35, waitMax: 0.7, stimulusDuration: 6, pairCount: 4,
+    },
+    'rule-shift': {
+      kind: 'rule-shift', repetitions: 20, waitMin: 0.25, waitMax: 0.55, stimulusDuration: 3.2, optionCount: 3,
     },
   };
 }
@@ -187,6 +241,12 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
     'color-number': profileNormalizeExercise(raw?.['color-number'], defaults['color-number']),
     stroop: profileNormalizeExercise(raw?.stroop, defaults.stroop),
     words: profileNormalizeExercise(raw?.words, defaults.words),
+    flow: profileNormalizeExercise(raw?.flow, defaults.flow),
+    'memory-match': profileNormalizeExercise(raw?.['memory-match'], defaults['memory-match']),
+    'memory-matrix': profileNormalizeExercise(raw?.['memory-matrix'], defaults['memory-matrix']),
+    'spatial-match': profileNormalizeExercise(raw?.['spatial-match'], defaults['spatial-match']),
+    'star-search': profileNormalizeExercise(raw?.['star-search'], defaults['star-search']),
+    'rule-shift': profileNormalizeExercise(raw?.['rule-shift'], defaults['rule-shift']),
   };
 
   return {
@@ -258,7 +318,7 @@ function profileEnhanceHome(home: HTMLElement): void {
     entry.type = 'button';
     entry.className = 'active-profile-card';
     entry.dataset.profileEntry = 'true';
-    home.querySelector('.exercise-grid')?.before(entry);
+    (home.querySelector('.exercise-carousel-shell') ?? home.querySelector('.exercise-grid'))?.before(entry);
   }
 
   const current = profileActive();
@@ -329,7 +389,7 @@ function profileRenderContext(element: HTMLElement, saving: boolean): void {
 
 function profileCurrentExercise(root: HTMLElement): ExerciseId | null {
   const title = root.querySelector<HTMLElement>('.topbar h1')?.textContent?.trim() ?? '';
-  const ids: ExerciseId[] = ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words'];
+  const ids: ExerciseId[] = ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words', 'flow', 'memory-match', 'memory-matrix', 'spatial-match', 'star-search', 'rule-shift'];
   return ids.find((id) => exerciseTitles[id] === title) ?? null;
 }
 
@@ -386,6 +446,39 @@ function profileReadForm(form: HTMLFormElement, exercise: ExerciseId): ExerciseS
     const instruction = (form.querySelector<HTMLInputElement>('input[name="stroopInstruction"]:checked')?.value ?? 'ink') as StroopMode;
     const allowMatches = form.querySelector<HTMLInputElement>('#allowMatches')?.checked ?? false;
     return { kind: 'stroop', ...base, colors, instruction, allowMatches };
+  }
+
+  if (exercise === 'flow') return { kind: 'flow', ...base };
+
+  if (exercise === 'memory-match') {
+    const nBack = profileFieldNumber(form, 'nBack');
+    if (!Number.isFinite(nBack)) return null;
+    return { kind: 'memory-match', ...base, nBack };
+  }
+
+  if (exercise === 'memory-matrix') {
+    const gridSize = profileFieldNumber(form, 'gridSize');
+    const memoryCells = profileFieldNumber(form, 'memoryCells');
+    if (!Number.isFinite(gridSize) || !Number.isFinite(memoryCells)) return null;
+    return { kind: 'memory-matrix', ...base, gridSize, memoryCells };
+  }
+
+  if (exercise === 'spatial-match') {
+    const itemCount = profileFieldNumber(form, 'itemCount');
+    if (!Number.isFinite(itemCount)) return null;
+    return { kind: 'spatial-match', ...base, itemCount };
+  }
+
+  if (exercise === 'star-search') {
+    const pairCount = profileFieldNumber(form, 'pairCount');
+    if (!Number.isFinite(pairCount)) return null;
+    return { kind: 'star-search', ...base, pairCount };
+  }
+
+  if (exercise === 'rule-shift') {
+    const optionCount = profileFieldNumber(form, 'optionCount');
+    if (!Number.isFinite(optionCount)) return null;
+    return { kind: 'rule-shift', ...base, optionCount };
   }
 
   const words = (form.querySelector<HTMLTextAreaElement>('#wordList')?.value ?? '')
@@ -454,6 +547,15 @@ function profileApplyToForm(form: HTMLFormElement, snapshot: ExerciseSnapshot): 
       const textarea = form.querySelector<HTMLTextAreaElement>('#wordList');
       if (textarea) textarea.value = snapshot.words.join('\n');
     }
+
+    if (snapshot.kind === 'memory-match') profileSetField(form, 'nBack', snapshot.nBack);
+    if (snapshot.kind === 'memory-matrix') {
+      profileSetField(form, 'gridSize', snapshot.gridSize);
+      profileSetField(form, 'memoryCells', snapshot.memoryCells);
+    }
+    if (snapshot.kind === 'spatial-match') profileSetField(form, 'itemCount', snapshot.itemCount);
+    if (snapshot.kind === 'star-search') profileSetField(form, 'pairCount', snapshot.pairCount);
+    if (snapshot.kind === 'rule-shift') profileSetField(form, 'optionCount', snapshot.optionCount);
   } finally {
     applying = false;
   }
