@@ -64,7 +64,7 @@ async function collectBackup(): Promise<BackupPayload> {
   const storage: Record<string, string> = {};
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
-    if (!key) continue;
+    if (!key?.startsWith(APP_STORAGE_PREFIX)) continue;
     const value = localStorage.getItem(key);
     if (value !== null) storage[key] = value;
   }
