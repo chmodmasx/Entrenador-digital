@@ -1,13 +1,14 @@
 import './cognitive-games.css';
 import { timingPolicy } from './training-timing';
+import { renderStepper } from './components/stepper';
+import {
+  COGNITIVE_EXERCISE_IDS,
+  EXERCISE_META,
+  isCognitiveExerciseId,
+  type CognitiveExerciseId,
+} from './domain/exercises';
 
-export type CognitiveExerciseId =
-  | 'flow'
-  | 'memory-match'
-  | 'memory-matrix'
-  | 'spatial-match'
-  | 'star-search'
-  | 'rule-shift';
+export type { CognitiveExerciseId } from './domain/exercises';
 
 export interface CognitiveBaseConfig {
   repetitions: number;
@@ -102,52 +103,15 @@ const MEMORY_SYMBOLS = ['▲', '●', '■', '◆', '✦', '✚'];
 const RULE_SHAPES = ['circle', 'triangle', 'square', 'diamond'] as const;
 type RuleShape = typeof RULE_SHAPES[number];
 
-export const COGNITIVE_IDS: CognitiveExerciseId[] = [
-  'flow',
-  'memory-match',
-  'memory-matrix',
-  'spatial-match',
-  'star-search',
-  'rule-shift',
-];
+export const COGNITIVE_IDS: CognitiveExerciseId[] = [...COGNITIVE_EXERCISE_IDS];
 
 export const cognitiveMeta: Record<CognitiveExerciseId, CognitiveMeta> = {
-  flow: {
-    title: 'Ebb & Flow',
-    subtitle: 'Cambiá entre punta y movimiento',
-    description: 'Deslizá en la dirección correcta: verde sigue la punta; naranja sigue el movimiento.',
-    symbol: '❧',
-  },
-  'memory-match': {
-    title: 'Memory Match',
-    subtitle: 'Compará con lo que viste antes',
-    description: 'Mirá cada carta y decidí si es igual a la que apareció algunos turnos atrás.',
-    symbol: '◇',
-  },
-  'memory-matrix': {
-    title: 'Memory Matrix',
-    subtitle: 'Memorizá posiciones',
-    description: 'Memorizá las casillas iluminadas y marcá las mismas cuando se apaguen.',
-    symbol: '▦',
-  },
-  'spatial-match': {
-    title: 'Spatial Speed Match',
-    subtitle: 'Compará dos patrones',
-    description: 'Decidí rápidamente si los dos patrones tienen los puntos en las mismas posiciones.',
-    symbol: '⠿',
-  },
-  'star-search': {
-    title: 'Star Search',
-    subtitle: 'Encontrá la figura sin pareja',
-    description: 'Buscá la única figura que no tiene otra igual y tocala.',
-    symbol: '✦',
-  },
-  'rule-shift': {
-    title: 'Disillusion',
-    subtitle: 'Cambiá entre color y forma',
-    description: 'Elegí la figura que coincida con el objetivo según la consigna: mismo color o misma forma.',
-    symbol: '⬟',
-  },
+  flow: EXERCISE_META.flow,
+  'memory-match': EXERCISE_META['memory-match'],
+  'memory-matrix': EXERCISE_META['memory-matrix'],
+  'spatial-match': EXERCISE_META['spatial-match'],
+  'star-search': EXERCISE_META['star-search'],
+  'rule-shift': EXERCISE_META['rule-shift'],
 };
 
 function cognitiveTiming(kind: CognitiveExerciseId): Pick<CognitiveBaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
@@ -199,7 +163,7 @@ export const cognitiveDefaults: Record<CognitiveExerciseId, CognitiveConfig> = {
 };
 
 export function isCognitiveExercise(value: string): value is CognitiveExerciseId {
-  return COGNITIVE_IDS.includes(value as CognitiveExerciseId);
+  return isCognitiveExerciseId(value);
 }
 
 export function cognitiveCardVisual(id: CognitiveExerciseId): string {
@@ -255,20 +219,7 @@ export function cognitiveTrainingSubtitle(id: CognitiveExerciseId, config: Cogni
   return 'Juego cognitivo en curso';
 }
 
-function stepper(name: string, label: string, value: number, unit: string, min: number, max: number, step: number): string {
-  return `
-    <div class="setting-row">
-      <label for="${name}">${label}</label>
-      <div class="stepper" data-stepper="${name}">
-        <button type="button" data-delta="-${step}" aria-label="Disminuir ${label}">−</button>
-        <div class="stepper-value">
-          <input id="${name}" name="${name}" type="number" value="${value}" min="${min}" max="${max}" step="${step}" inputmode="decimal" />
-          ${unit ? `<span>${unit}</span>` : ''}
-        </div>
-        <button type="button" data-delta="${step}" aria-label="Aumentar ${label}">+</button>
-      </div>
-    </div>`;
-}
+const stepper = renderStepper;
 
 export function cognitiveConfigSection(config: CognitiveConfig): string {
   if (config.kind === 'flow') {
