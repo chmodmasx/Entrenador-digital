@@ -483,13 +483,23 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
     const expected = leafColor === 'green' ? orientation : movement;
     const stimulus = `${leafColor === 'green' ? 'Verde' : 'Naranja'} · apunta ${DIRECTION_LABELS[orientation]} · mueve ${DIRECTION_LABELS[movement]}`;
 
+    const leafCount = randomInteger(4, 7);
+    const leafMarkup = Array.from({ length: leafCount }, (_, index) => {
+      const evenlySpaced = 16 + ((index + 1) * 68) / (leafCount + 1);
+      const track = Math.max(12, Math.min(88, evenlySpaced + randomInteger(-5, 5)));
+      const scale = (74 + randomInteger(0, 36)) / 100;
+      return `
+        <div class="flow-leaf-item flow-leaf-item-${movement}"
+             style="--flow-track:${track}%;--leaf-scale:${scale};--flow-duration:${Math.max(900, flowConfig.stimulusDurationMs)}ms">
+          ${leafSvg(orientation, FLOW_COLORS[leafColor])}
+        </div>`;
+    }).join('');
+
     root.innerHTML = `
       <div class="cognitive-game flow-game" data-flow-swipe aria-label="Deslizá en la dirección correcta">
         <div class="flow-rule-bar"><span><i class="flow-rule-dot green"></i>VERDE = hoja</span><span><i class="flow-rule-dot orange"></i>NARANJA = movimiento</span></div>
         <div class="flow-field">
-          <div class="flow-motion flow-motion-${movement}" style="--flow-duration:${Math.max(900, flowConfig.stimulusDurationMs)}ms">
-            ${leafSvg(orientation, FLOW_COLORS[leafColor])}
-          </div>
+          <div class="flow-swarm">${leafMarkup}</div>
         </div>
         <div class="cognitive-feedback" data-feedback></div>
         <div class="flow-swipe-hint" aria-hidden="true"><span>↕</span><strong>DESLIZÁ PARA RESPONDER</strong><span>↔</span></div>
@@ -780,9 +790,9 @@ function leafSvg(direction: CardinalDirection, color: string): string {
   return `
     <svg class="flow-leaf" viewBox="0 0 180 120" style="--leaf-color:${color};--leaf-rotation:${rotation[direction]}deg" aria-hidden="true">
       <g class="flow-leaf-rotator">
-        <path d="M18 61C45 18 108 8 160 43c-21 44-73 66-142 18Z" fill="var(--leaf-color)"/>
-        <path d="M28 61c43-4 76-9 119-18" fill="none" stroke="rgba(255,255,255,.72)" stroke-width="5" stroke-linecap="round"/>
-        <path d="M18 61 3 61" fill="none" stroke="var(--leaf-color)" stroke-width="11" stroke-linecap="round"/>
+        <path d="M26 60C58 23 111 17 150 35L171 60 150 85C111 103 58 97 26 60Z" fill="var(--leaf-color)"/>
+        <path d="M28 60H153" fill="none" stroke="rgba(255,255,255,.76)" stroke-width="5" stroke-linecap="round"/>
+        <path d="M26 60H6" fill="none" stroke="var(--leaf-color)" stroke-width="10" stroke-linecap="round"/>
       </g>
     </svg>`;
 }
