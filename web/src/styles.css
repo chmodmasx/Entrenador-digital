@@ -803,19 +803,27 @@ body.is-training {
 }
 
 .countdown {
-  position: absolute;
-  z-index: 4;
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  top: 50%;
   display: grid;
-  width: 116px;
-  height: 116px;
+  width: clamp(148px, 34vmin, 210px);
+  height: clamp(148px, 34vmin, 210px);
   place-items: center;
-  border: 2px solid rgba(255,255,255,.23);
+  border: 3px solid rgba(255,255,255,.28);
   border-radius: 50%;
-  background: rgba(2,26,70,.9);
-  box-shadow: 0 0 40px rgba(1,156,232,.22);
+  background: rgba(2,26,70,.94);
+  box-shadow:
+    0 0 0 1px rgba(1,156,232,.16),
+    0 0 52px rgba(1,156,232,.30),
+    0 22px 46px rgba(0,0,0,.24);
   color: white;
-  font-size: 52px;
-  font-weight: 800;
+  font-size: clamp(68px, 15vmin, 104px);
+  font-weight: 850;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .feedback-message {

@@ -287,8 +287,10 @@
 
 .cognitive-training-stage {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
-  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+  padding: 4px 0 max(4px, env(safe-area-inset-bottom));
 }
 
 .cognitive-stage {
@@ -414,8 +416,11 @@
 /* Ebb & Flow */
 
 .flow-game {
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  position: relative;
+  grid-template-rows: auto minmax(0, 1fr);
   align-content: stretch;
+  min-height: 0;
+  padding-bottom: 0;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -451,32 +456,47 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 260px;
+  min-height: 0;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   background:
-    radial-gradient(circle at 50% 50%, rgba(1,156,232,.11), transparent 18%),
-    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.022) 0 1px, transparent 1px 46px);
+    radial-gradient(circle at 50% 50%, rgba(1,156,232,.10), transparent 20%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.02) 0 1px, transparent 1px 52px);
 }
 
-.flow-motion {
+.flow-swarm {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(40vw, 220px);
-  transform: translate(-50%, -50%);
+  inset: 0;
+  overflow: hidden;
 }
 
-.flow-motion-right { animation: flowRight var(--flow-duration) linear forwards; }
-.flow-motion-left { animation: flowLeft var(--flow-duration) linear forwards; }
-.flow-motion-up { animation: flowUp var(--flow-duration) linear forwards; }
-.flow-motion-down { animation: flowDown var(--flow-duration) linear forwards; }
+.flow-leaf-item {
+  position: absolute;
+  width: clamp(90px, 21vw, 165px);
+  transform: translate(-50%, -50%) scale(var(--leaf-scale));
+  will-change: left, top;
+}
+
+.flow-leaf-item-right,
+.flow-leaf-item-left {
+  top: var(--flow-track);
+}
+
+.flow-leaf-item-up,
+.flow-leaf-item-down {
+  left: var(--flow-track);
+}
+
+.flow-leaf-item-right { animation: flowRight var(--flow-duration) linear forwards; }
+.flow-leaf-item-left { animation: flowLeft var(--flow-duration) linear forwards; }
+.flow-leaf-item-up { animation: flowUp var(--flow-duration) linear forwards; }
+.flow-leaf-item-down { animation: flowDown var(--flow-duration) linear forwards; }
 
 .flow-leaf {
   display: block;
   width: 100%;
-  filter: drop-shadow(0 13px 14px rgba(0,0,0,.20));
+  filter: drop-shadow(0 11px 13px rgba(0,0,0,.18));
 }
 
 .flow-leaf-rotator {
@@ -485,34 +505,44 @@
 }
 
 @keyframes flowRight {
-  from { left: 18%; }
-  to { left: 82%; }
+  from { left: -12%; }
+  to { left: 112%; }
 }
 
 @keyframes flowLeft {
-  from { left: 82%; }
-  to { left: 18%; }
+  from { left: 112%; }
+  to { left: -12%; }
 }
 
 @keyframes flowUp {
-  from { top: 78%; }
-  to { top: 22%; }
+  from { top: 112%; }
+  to { top: -12%; }
 }
 
 @keyframes flowDown {
-  from { top: 22%; }
-  to { top: 78%; }
+  from { top: -12%; }
+  to { top: 112%; }
 }
 
 .flow-swipe-hint {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
   display: flex;
-  min-height: 42px;
+  min-height: 36px;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: rgba(255,255,255,.46);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(2,26,70,.34);
+  color: rgba(255,255,255,.48);
   font-size: 9px;
   letter-spacing: .09em;
+  transform: translateX(-50%);
+  backdrop-filter: blur(5px);
+  pointer-events: none;
 }
 
 .flow-swipe-hint span {
@@ -522,8 +552,18 @@
 }
 
 .flow-swipe-hint strong {
+  white-space: nowrap;
   font-size: 9px;
   font-weight: 800;
+}
+
+.flow-game .cognitive-feedback {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 /* Memory Match */
@@ -793,7 +833,7 @@
   }
 
   .flow-field {
-    min-height: 230px;
+    min-height: 0;
   }
 
   .cognitive-game-root {
@@ -828,13 +868,17 @@
 
   .flow-game {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .flow-field {
-    width: min(82vw, 680px);
+    width: min(88vw, 720px);
     height: 100%;
-    min-height: 150px;
+    min-height: 0;
+  }
+
+  .flow-leaf-item {
+    width: clamp(72px, 14vw, 130px);
   }
 
   .memory-card {
@@ -890,10 +934,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flow-motion-right,
-  .flow-motion-left,
-  .flow-motion-up,
-  .flow-motion-down {
+  .flow-leaf-item-right,
+  .flow-leaf-item-left,
+  .flow-leaf-item-up,
+  .flow-leaf-item-down {
     animation-duration: .001ms !important;
   }
 }
