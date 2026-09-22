@@ -1,6 +1,5 @@
 import { sanitizeTimingSeconds, timingPolicy } from './training-timing';
-
-type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words' | 'flow' | 'memory-match' | 'memory-matrix' | 'spatial-match' | 'star-search' | 'rule-shift';
+import { EXERCISE_META, type ExerciseId } from './domain/exercises';
 type DirectionId = 'up' | 'up-right' | 'right' | 'down-right' | 'down' | 'down-left' | 'left' | 'up-left';
 type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
 type StroopMode = 'ink' | 'word';
@@ -106,27 +105,14 @@ const PRESET_STORE = 'presets';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 
-const exerciseTitles: Record<ExerciseId, string> = {
-  arrows: 'Flechas',
-  numbers: 'Números',
-  colors: 'Colores',
-  'color-number': 'Color + número',
-  stroop: 'Color y palabra',
-  words: 'Palabras',
-  flow: 'Ebb & Flow',
-  'memory-match': 'Memory Match',
-  'memory-matrix': 'Memory Matrix',
-  'spatial-match': 'Spatial Speed Match',
-  'star-search': 'Star Search',
-  'rule-shift': 'Disillusion',
-};
 
 const allDirections: DirectionId[] = ['up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left'];
 const allColors: ColorId[] = ['blue', 'red', 'green', 'yellow', 'orange', 'violet'];
 
 let profiles: TrainingProfile[] = profileLoadAll();
 let activeProfileId = localStorage.getItem(ACTIVE_KEY) ?? '';
-let cachedHome: HTMLElement | null = null;
+let cachedScreen: HTMLElement | null = null;
+let cachedScrollY = 0;
 let profilesScreenOpen = false;
 let applying = false;
 let autosaveTimer: number | undefined;
@@ -134,12 +120,6 @@ let lastTaggedSessionId = '';
 
 profileEnsureState();
 void profileClearOldPresets();
-
-if (app) {
-  const observer = new MutationObserver(() => window.setTimeout(profileEnhanceScreen, 0));
-  observer.observe(app, { childList: true, subtree: true });
-  window.setTimeout(profileEnhanceScreen, 0);
-}
 
 function profileTimingDefaults(kind: ExerciseId): Pick<BaseSnapshot, 'waitMin' | 'waitMax' | 'stimulusDuration'> {
   const policy = timingPolicy(kind);
@@ -312,6 +292,10 @@ function profilePersistActive(): void {
   localStorage.setItem(ACTIVE_KEY, activeProfileId);
 }
 
+export function profileEnhanceCurrentScreen(): void {
+  profileEnhanceScreen();
+}
+
 function profileEnhanceScreen(): void {
   if (!app || profilesScreenOpen) return;
 
@@ -380,6 +364,19 @@ function profileEnhanceConfig(root: HTMLElement): void {
     root.querySelector('.exercise-intro-card')?.before(context);
   }
   profileRenderContext(context, false);
+  context.dataset.profileContextLink = 'true';
+  context.setAttribute('role', 'button');
+  context.setAttribute('tabindex', '0');
+  context.setAttribute('aria-label', `Abrir perfiles. Perfil activo: ${profileActive().name}`);
+  if (context.dataset.profileContextBound !== 'true') {
+    context.dataset.profileContextBound = 'true';
+    context.addEventListener('click', profileOpenScreen);
+    context.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      profileOpenScreen();
+    });
+  }
 
   const applyKey = `${activeProfileId}:${exercise}`;
   if (root.dataset.profileApplied !== applyKey) {
@@ -413,9 +410,8 @@ function profileRenderContext(element: HTMLElement, saving: boolean): void {
 }
 
 function profileCurrentExercise(root: HTMLElement): ExerciseId | null {
-  const title = root.querySelector<HTMLElement>('.topbar h1')?.textContent?.trim() ?? '';
-  const ids: ExerciseId[] = ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words', 'flow', 'memory-match', 'memory-matrix', 'spatial-match', 'star-search', 'rule-shift'];
-  return ids.find((id) => exerciseTitles[id] === title) ?? null;
+  const id = root.dataset.exerciseId as ExerciseId | undefined;
+  return id && EXERCISE_META[id] ? id : null;
 }
 
 function profileParseNumber(value: string): number {
@@ -624,8 +620,8 @@ function profileEnhanceSettings(root: HTMLElement): void {
 
 function profileOpenScreen(): void {
   if (!app || profilesScreenOpen) return;
-  const home = app.querySelector<HTMLElement>('.home-screen');
-  if (home) cachedHome = home;
+  cachedScreen = app.firstElementChild instanceof HTMLElement ? app.firstElementChild : null;
+  cachedScrollY = Math.max(0, window.scrollY);
   profilesScreenOpen = true;
   profileRenderScreen();
 }
@@ -734,13 +730,15 @@ function profileRestoreHome(): void {
   if (!app) return;
   profileCloseModal();
   profilesScreenOpen = false;
-  if (cachedHome) {
-    const home = cachedHome;
-    cachedHome = null;
+  if (cachedScreen) {
+    const screenRoot = cachedScreen;
+    const scrollY = cachedScrollY;
+    cachedScreen = null;
+    cachedScrollY = 0;
     profileClearApp();
-    app.appendChild(home);
-    profileEnhanceHome(home);
-    window.scrollTo(0, 0);
+    app.appendChild(screenRoot);
+    profileEnhanceScreen();
+    window.scrollTo(0, scrollY);
     return;
   }
   window.location.reload();
