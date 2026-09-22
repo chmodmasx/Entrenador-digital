@@ -75,8 +75,8 @@ button:disabled {
 .brand-hero {
   position: relative;
   overflow: hidden;
-  min-height: 218px;
-  padding: 22px;
+  min-height: 188px;
+  padding: 20px 22px;
   border-radius: 28px;
   color: var(--white);
   background:
@@ -137,7 +137,7 @@ button:disabled {
 .hero-copy {
   position: relative;
   z-index: 1;
-  margin-top: 32px;
+  margin-top: 22px;
 }
 
 .hero-copy p {
@@ -199,6 +199,40 @@ button:disabled {
   opacity: .62;
 }
 
+.exercise-card-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.exercise-card-wrap > .exercise-card {
+  width: 100%;
+  height: 100%;
+}
+
+.exercise-quick-start {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(1, 156, 232, .28);
+  border-radius: 14px;
+  background: #eef8fe;
+  color: var(--blue);
+  font-size: 15px;
+  box-shadow: 0 5px 14px rgba(3,30,84,.08);
+  touch-action: manipulation;
+}
+
+.exercise-quick-start:active {
+  transform: scale(.96);
+  background: #dff2fd;
+}
+
 .coming-soon {
   position: absolute;
   right: 8px;
@@ -207,7 +241,7 @@ button:disabled {
   border-radius: 999px;
   background: #eff4f9;
   color: #6e7c90;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -367,7 +401,7 @@ button:disabled {
 }
 
 .shortcut-card strong { font-size: 13px; }
-.shortcut-card small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.shortcut-card small { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.25; }
 
 .home-motto,
 .training-motto {
@@ -1342,6 +1376,15 @@ body.is-training {
   *,
   *::before,
   *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .001ms !important;
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
     scroll-behavior: auto !important;
     transition-duration: .001ms !important;
     animation-duration: .001ms !important;
