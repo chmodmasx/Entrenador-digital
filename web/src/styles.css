@@ -200,8 +200,11 @@ button:disabled {
 }
 
 .exercise-card {
+  display: grid;
   width: 100%;
   height: 100%;
+  grid-template-rows: 64px 42px 30px;
+  align-content: start;
   text-align: left;
 }
 
@@ -223,7 +226,7 @@ button:disabled {
   display: grid;
   place-items: center;
   height: 64px;
-  margin-bottom: 6px;
+  margin: 0;
   color: var(--blue);
 }
 
@@ -235,14 +238,19 @@ button:disabled {
 }
 
 .exercise-card strong {
-  display: block;
-  padding: 0 4px;
+  display: flex;
+  width: 100%;
+  align-items: flex-end;
+  padding: 0 4px 4px;
   font-size: 17px;
   line-height: 1.2;
 }
 
 .exercise-card small {
-  margin-top: 5px;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 2px 4px 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
