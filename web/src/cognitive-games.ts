@@ -739,12 +739,16 @@ function createFlowLeafLayout(): FlowLeafPlacement[] {
 }
 
 function startFlowMotion(field: HTMLElement, movement: CardinalDirection): () => void {
-  const items = Array.from(field.querySelectorAll<HTMLElement>('[data-flow-leaf]')).map((element) => ({
-    element,
-    x: Number(element.dataset.flowX ?? 0),
-    y: Number(element.dataset.flowY ?? 0),
-    scale: Number(element.dataset.flowScale ?? 1),
-  }));
+  const items = Array.from(field.querySelectorAll<HTMLElement>('[data-flow-leaf]')).map((element) => {
+    const scale = Number(element.dataset.flowScale ?? 1);
+    return {
+      element,
+      x: Number(element.dataset.flowX ?? 0),
+      y: Number(element.dataset.flowY ?? 0),
+      scale,
+      halfExtent: Math.max(1, element.offsetWidth * scale * 0.5),
+    };
+  });
 
   let animationFrame = 0;
   let startedAt = 0;
@@ -762,8 +766,8 @@ function startFlowMotion(field: HTMLElement, movement: CardinalDirection): () =>
       const deltaY = movement === 'down' ? distance : movement === 'up' ? -distance : 0;
 
       items.forEach((leaf) => {
-        const x = wrapFlowCoordinate((leaf.x / 100) * width + deltaX, width);
-        const y = wrapFlowCoordinate((leaf.y / 100) * height + deltaY, height);
+        const x = wrapFlowCoordinate((leaf.x / 100) * width + deltaX, width, leaf.halfExtent);
+        const y = wrapFlowCoordinate((leaf.y / 100) * height + deltaY, height, leaf.halfExtent);
         leaf.element.style.transform =
           `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${leaf.scale})`;
       });
@@ -779,9 +783,11 @@ function startFlowMotion(field: HTMLElement, movement: CardinalDirection): () =>
   };
 }
 
-function wrapFlowCoordinate(value: number, span: number): number {
+function wrapFlowCoordinate(value: number, span: number, padding = 0): number {
   if (span <= 0) return 0;
-  return ((value % span) + span) % span;
+  const safePadding = Math.max(0, padding);
+  const cycle = span + safePadding * 2;
+  return ((((value + safePadding) % cycle) + cycle) % cycle) - safePadding;
 }
 
 function leafSvg(direction: CardinalDirection, color: string): string {
