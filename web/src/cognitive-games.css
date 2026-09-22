@@ -760,14 +760,14 @@
 
 .rule-instruction {
   align-self: center;
-  min-width: 118px;
-  padding: 9px 20px;
+  min-width: 128px;
+  padding: 10px 22px;
   border: 1px solid rgba(255,255,255,.13);
   border-radius: 999px;
   background: rgba(255,255,255,.07);
   box-shadow: inset 0 1px rgba(255,255,255,.05);
   color: #fff;
-  font-size: clamp(18px, 5vw, 24px);
+  font-size: clamp(20px, 5.5vw, 27px);
   font-weight: 900;
   letter-spacing: .10em;
   line-height: 1;
@@ -807,9 +807,10 @@
 .rule-options {
   display: flex;
   width: min(100%, 600px);
-  align-self: start;
+  align-self: end;
   justify-content: center;
   gap: clamp(14px, 4vw, 24px);
+  margin-bottom: clamp(18px, 2.8vh, 30px);
 }
 
 .rule-options button {
