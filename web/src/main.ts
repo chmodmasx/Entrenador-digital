@@ -2,11 +2,9 @@ import './styles.css';
 import './passive.css';
 import './sections.css';
 import {
-  COGNITIVE_IDS,
   cognitiveCardVisual,
   cognitiveConfigSection,
   cognitiveDefaults,
-  cognitiveMeta,
   cognitivePresetSummary,
   cognitiveResultDetailLabel,
   cognitiveResultDetailValue,
@@ -18,9 +16,22 @@ import {
   readCognitiveConfig,
   type CognitiveConfig,
   type CognitiveController,
-  type CognitiveExerciseId,
 } from './cognitive-games';
 import { timingPolicy } from './training-timing';
+import { bindSteppers, parseLocaleNumber, renderStepper } from './components/stepper';
+import { EXERCISE_IDS, EXERCISE_META, type ExerciseId } from './domain/exercises';
+import { validateBaseTrainingValues } from './domain/validation';
+import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './platform/native-bridge';
+import { exportBackup, requestBackupImport } from './backup';
+import { profileEnhanceCurrentScreen } from './profiles';
+import {
+  PRESET_STORE,
+  SESSION_STORE,
+  clearStore as dbClearStore,
+  deleteRecord as dbDeleteRecord,
+  listRecords as dbListRecords,
+  putRecord as dbPutRecord,
+} from './storage/database';
 
 type Direction =
   | 'up'
@@ -32,24 +43,9 @@ type Direction =
   | 'left'
   | 'up-left';
 
-type PassiveExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words';
-type ExerciseId = PassiveExerciseId | CognitiveExerciseId;
 type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
 type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'presets' | 'settings';
 type StroopInstruction = 'ink' | 'word';
-
-interface AndroidBridge {
-  setTrainingMode?: (enabled: boolean) => void;
-  vibrate?: (milliseconds: number) => void;
-  getAppVersion?: () => string;
-  finishApp?: () => void;
-}
-
-declare global {
-  interface Window {
-    Android?: AndroidBridge;
-  }
-}
 
 interface BaseConfig {
   repetitions: number;
@@ -159,13 +155,6 @@ interface RuntimeSession {
   clockTimer?: number;
 }
 
-interface ExerciseMeta {
-  title: string;
-  subtitle: string;
-  description: string;
-  symbol: string;
-}
-
 const appElement = document.querySelector<HTMLDivElement>('#app');
 if (!appElement) throw new Error('No se encontró #app');
 const app: HTMLDivElement = appElement;
@@ -194,45 +183,7 @@ const colors: Record<ColorId, { label: string; hex: string }> = {
 
 const colorOrder = Object.keys(colors) as ColorId[];
 
-const exerciseMeta: Record<ExerciseId, ExerciseMeta> = {
-  arrows: {
-    title: 'Flechas',
-    subtitle: 'Reacciona a la dirección',
-    description: 'Señales en ocho direcciones para desplazamientos y cambios de orientación.',
-    symbol: '↑',
-  },
-  numbers: {
-    title: 'Números',
-    subtitle: 'Reacciona a los números',
-    description: 'Números grandes y aleatorios para asociar consignas físicas o técnicas.',
-    symbol: '123',
-  },
-  colors: {
-    title: 'Colores',
-    subtitle: 'Reacciona al color',
-    description: 'Estímulos cromáticos de alta visibilidad para consignas rápidas.',
-    symbol: '●',
-  },
-  'color-number': {
-    title: 'Color + número',
-    subtitle: 'Combina estímulos',
-    description: 'Un número y un color aparecen juntos para aumentar la carga de decisión.',
-    symbol: '7',
-  },
-  stroop: {
-    title: 'Color y palabra',
-    subtitle: 'Evita la distracción',
-    description: 'Palabras de colores con tinta coincidente o distinta para trabajo tipo Stroop.',
-    symbol: 'Aa',
-  },
-  words: {
-    title: 'Palabras',
-    subtitle: 'Reacciona a las palabras',
-    description: 'Consignas personalizadas que aparecen automáticamente durante la sesión.',
-    symbol: 'ABC',
-  },
-  ...cognitiveMeta,
-};
+const exerciseMeta = EXERCISE_META;
 
 function defaultTiming(kind: ExerciseId): Pick<BaseConfig, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
   const policy = timingPolicy(kind);
@@ -309,6 +260,7 @@ let runtime: RuntimeSession | null = null;
 let cognitiveController: CognitiveController | null = null;
 let lastSession: StoredSession | null = null;
 let audioContext: AudioContext | null = null;
+let quickStartRequested = false;
 
 function cloneConfig<T extends ExerciseConfig>(config: T): T {
   return JSON.parse(JSON.stringify(config)) as T;
@@ -370,7 +322,11 @@ function navigate(next: Screen): void {
 }
 
 function render(): void {
-  document.body.classList.toggle('is-training', screen === 'training');
+  const training = screen === 'training';
+  document.body.classList.toggle('is-training', training);
+  document.body.classList.toggle('is-home', screen === 'home');
+  setNativeTrainingMode(training);
+
   if (screen === 'home') renderHome();
   if (screen === 'config') renderConfig();
   if (screen === 'training') renderTraining();
@@ -378,6 +334,13 @@ function render(): void {
   if (screen === 'history') void renderHistory();
   if (screen === 'presets') void renderPresets();
   if (screen === 'settings') renderSettings();
+
+  profileEnhanceCurrentScreen();
+
+  if (screen === 'config' && quickStartRequested) {
+    quickStartRequested = false;
+    app.querySelector<HTMLFormElement>('#exercise-config')?.requestSubmit();
+  }
 }
 
 function renderHome(): void {
@@ -451,6 +414,13 @@ function renderHome(): void {
       navigate('config');
     });
   });
+  app.querySelectorAll<HTMLButtonElement>('[data-quick-start]').forEach((button) => {
+    button.addEventListener('click', () => {
+      selectedExercise = button.dataset.quickStart as ExerciseId;
+      quickStartRequested = true;
+      navigate('config');
+    });
+  });
   bindExerciseCarousel();
   app.querySelector<HTMLButtonElement>('[data-action="history"]')?.addEventListener('click', () => navigate('history'));
   app.querySelector<HTMLButtonElement>('[data-action="presets"]')?.addEventListener('click', () => navigate('presets'));
@@ -460,11 +430,14 @@ function renderHome(): void {
 function exerciseCard(id: ExerciseId, visual: string): string {
   const meta = exerciseMeta[id];
   return `
-    <button class="exercise-card" data-exercise="${id}">
-      <span class="exercise-visual">${visual}</span>
-      <strong>${meta.title}</strong>
-      <small>${meta.subtitle}</small>
-    </button>`;
+    <article class="exercise-card-wrap">
+      <button class="exercise-card" data-exercise="${id}">
+        <span class="exercise-visual">${visual}</span>
+        <strong>${meta.title}</strong>
+        <small>${meta.subtitle}</small>
+      </button>
+      <button class="exercise-quick-start" type="button" data-quick-start="${id}" aria-label="Iniciar ${meta.title} con el perfil activo">▶</button>
+    </article>`;
 }
 
 function bindExerciseCarousel(): void {
@@ -524,7 +497,7 @@ function renderConfig(): void {
   const config = configs[selectedExercise];
 
   app.innerHTML = `
-    <main class="app-shell config-screen">
+    <main class="app-shell config-screen" data-exercise-id="${selectedExercise}">
       <header class="topbar">
         <button class="icon-button" data-action="back" aria-label="Volver">←</button>
         <div><h1>${meta.title}</h1><p>Configura tu entrenamiento</p></div>
@@ -556,7 +529,7 @@ function renderConfig(): void {
     </main>`;
 
   app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', () => navigate('home'));
-  bindSteppers();
+  bindConfigSteppers();
   bindConfigEnhancements();
 
   const form = app.querySelector<HTMLFormElement>('#exercise-config');
@@ -712,95 +685,11 @@ function toggleRow(id: string, title: string, description: string, checked: bool
     </label>`;
 }
 
-function stepper(name: string, label: string, value: number, unit: string, min: number, max: number, step: number): string {
-  return `
-    <div class="setting-row">
-      <label for="${name}">${label}</label>
-      <div class="stepper" data-stepper="${name}">
-        <button type="button" data-delta="-${step}" aria-label="Disminuir ${label}">−</button>
-        <div class="stepper-value">
-          <input id="${name}" name="${name}" type="number" value="${value}" min="${min}" max="${max}" step="${step}" inputmode="decimal" />
-          ${unit ? `<span>${unit}</span>` : ''}
-        </div>
-        <button type="button" data-delta="${step}" aria-label="Aumentar ${label}">+</button>
-      </div>
-    </div>`;
-}
+const stepper = renderStepper;
 
-function bindSteppers(): void {
-  const supportsPointer = 'PointerEvent' in window;
 
-  app.querySelectorAll<HTMLElement>('[data-stepper]').forEach((stepperElement) => {
-    const input = stepperElement.querySelector<HTMLInputElement>('input[type="number"]');
-    if (!input) return;
-
-    const applyDelta = (delta: number) => {
-      const current = Number(input.value || 0);
-      const min = input.min === '' ? -Infinity : Number(input.min);
-      const max = input.max === '' ? Infinity : Number(input.max);
-      const next = Math.min(max, Math.max(min, current + delta));
-      const decimals = Math.abs(delta) < 1 ? 1 : 0;
-      input.value = decimals ? next.toFixed(decimals) : String(Math.round(next));
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
-    stepperElement.querySelectorAll<HTMLButtonElement>('button[data-delta]').forEach((button) => {
-      let holdDelay: number | undefined;
-      let repeatTimer: number | undefined;
-      let startedAt = 0;
-      let pointerHandled = false;
-
-      const delta = Number(button.dataset.delta ?? 0);
-
-      const clearTimers = () => {
-        if (holdDelay !== undefined) window.clearTimeout(holdDelay);
-        if (repeatTimer !== undefined) window.clearTimeout(repeatTimer);
-        holdDelay = undefined;
-        repeatTimer = undefined;
-      };
-
-      const repeat = () => {
-        applyDelta(delta);
-        const elapsed = Date.now() - startedAt;
-        const delay = elapsed > 1500 ? 60 : elapsed > 800 ? 90 : 125;
-        repeatTimer = window.setTimeout(repeat, delay);
-      };
-
-      const start = (event: Event) => {
-        event.preventDefault();
-        clearTimers();
-        pointerHandled = true;
-        startedAt = Date.now();
-        applyDelta(delta);
-        holdDelay = window.setTimeout(repeat, 360);
-      };
-
-      const stop = () => clearTimers();
-
-      button.addEventListener('click', (event) => {
-        if (pointerHandled) {
-          pointerHandled = false;
-          event.preventDefault();
-          return;
-        }
-        applyDelta(delta);
-      });
-
-      if (supportsPointer) {
-        button.addEventListener('pointerdown', start);
-        button.addEventListener('pointerup', stop);
-        button.addEventListener('pointercancel', stop);
-        button.addEventListener('pointerleave', stop);
-      } else {
-        button.addEventListener('touchstart', start, { passive: false });
-        button.addEventListener('touchend', stop);
-        button.addEventListener('touchcancel', stop);
-        button.addEventListener('mousedown', start);
-        button.addEventListener('mouseup', stop);
-        button.addEventListener('mouseleave', stop);
-      }
-    });
-  });
+function bindConfigSteppers(): void {
+  bindSteppers(app);
 }
 
 function bindConfigEnhancements(): void {
@@ -814,53 +703,29 @@ function bindConfigEnhancements(): void {
 }
 
 function numberInput(id: string): number {
-  return Number(app.querySelector<HTMLInputElement>(`#${id}`)?.value ?? 0);
+  const raw = app.querySelector<HTMLInputElement>(`#${id}`)?.value ?? '';
+  return parseLocaleNumber(raw) ?? Number.NaN;
 }
 
 function readBaseConfig(): BaseConfig | null {
-  const repetitions = numberInput('repetitions');
   const roundPauseInput = app.querySelector<HTMLInputElement>('#roundPause');
-  const stimulusDuration = numberInput('stimulusDuration');
-  const policy = timingPolicy(selectedExercise);
+  const waitMin = roundPauseInput ? numberInput('roundPause') : numberInput('waitMin');
+  const waitMax = roundPauseInput ? waitMin : numberInput('waitMax');
+  const validation = validateBaseTrainingValues(selectedExercise, {
+    repetitions: numberInput('repetitions'),
+    waitMin,
+    waitMax,
+    stimulusDuration: numberInput('stimulusDuration'),
+  });
 
-  if (!Number.isFinite(repetitions) || repetitions < 2) {
-    return showConfigError(isCognitiveExercise(selectedExercise)
-      ? 'La sesión debe tener al menos 2 rondas.'
-      : 'La sesión debe tener al menos 2 estímulos.');
-  }
-  if (!Number.isFinite(stimulusDuration) || stimulusDuration < policy.durationMin || stimulusDuration > policy.durationMax) {
-    return showConfigError(`El tiempo debe estar entre ${policy.durationMin} y ${policy.durationMax} s.`);
-  }
-
-  if (roundPauseInput) {
-    const roundPause = Number(roundPauseInput.value);
-    if (!Number.isFinite(roundPause) || roundPause < policy.pauseMin || roundPause > policy.pauseMax) {
-      return showConfigError(`La pausa debe estar entre ${policy.pauseMin} y ${policy.pauseMax} s.`);
-    }
-    return {
-      repetitions: Math.round(repetitions),
-      waitMinMs: Math.round(roundPause * 1000),
-      waitMaxMs: Math.round(roundPause * 1000),
-      stimulusDurationMs: Math.round(stimulusDuration * 1000),
-    };
-  }
-
-  const waitMin = numberInput('waitMin');
-  const waitMax = numberInput('waitMax');
-  if (!Number.isFinite(waitMin) || !Number.isFinite(waitMax)
-      || waitMin < policy.pauseMin || waitMax > policy.pauseMax
-      || waitMax - waitMin < 0.1) {
-    return showConfigError(`La aparición debe estar entre ${policy.pauseMin} y ${policy.pauseMax} s, con la máxima mayor que la mínima.`);
-  }
-
+  if (!validation.ok) return showConfigError(validation.error);
   return {
-    repetitions: Math.round(repetitions),
-    waitMinMs: Math.round(waitMin * 1000),
-    waitMaxMs: Math.round(waitMax * 1000),
-    stimulusDurationMs: Math.round(stimulusDuration * 1000),
+    repetitions: validation.value.repetitions,
+    waitMinMs: Math.round(validation.value.waitMin * 1000),
+    waitMaxMs: Math.round(validation.value.waitMax * 1000),
+    stimulusDurationMs: Math.round(validation.value.stimulusDuration * 1000),
   };
 }
-
 function readAndValidateConfig(form: HTMLFormElement): ExerciseConfig | null {
   const error = app.querySelector<HTMLParagraphElement>('#form-error');
   if (error) error.textContent = '';
@@ -1547,6 +1412,8 @@ function renderSettings(): void {
 
       <section class="settings-card settings-list-card">
         <div class="section-title"><span>⌁</span><div><h2>Datos locales</h2><p>Todo permanece guardado solamente en este dispositivo</p></div></div>
+        <button class="settings-action-row" data-action="export-backup"><span><strong>Exportar copia de seguridad</strong><small>Guarda perfiles, ajustes e historial en un archivo JSON</small></span><b>›</b></button>
+        <button class="settings-action-row" data-action="import-backup"><span><strong>Importar copia de seguridad</strong><small>Restaura datos guardados anteriormente</small></span><b>›</b></button>
         <button class="settings-action-row" data-action="clear-history"><span><strong>Borrar historial</strong><small>Elimina todas las sesiones guardadas</small></span><b>›</b></button>
         <button class="settings-action-row" data-action="clear-presets"><span><strong>Borrar presets</strong><small>Elimina todas las configuraciones guardadas</small></span><b>›</b></button>
       </section>
@@ -1572,6 +1439,9 @@ function renderSettings(): void {
       if (key === 'sound' && settings.sound) prepareAudio();
     });
   });
+
+  app.querySelector<HTMLButtonElement>('[data-action="export-backup"]')?.addEventListener('click', () => void exportBackup());
+  app.querySelector<HTMLButtonElement>('[data-action="import-backup"]')?.addEventListener('click', requestBackupImport);
 
   app.querySelector<HTMLButtonElement>('[data-action="clear-history"]')?.addEventListener('click', () => {
     openConfirmModal('Borrar historial', 'Se eliminarán todas las sesiones guardadas en este dispositivo.', 'Borrar historial', async () => {
@@ -1660,12 +1530,7 @@ function showToast(message: string): void {
 }
 
 function getAppVersion(): string {
-  try {
-    if (window.Android && typeof window.Android.getAppVersion === 'function') return window.Android.getAppVersion();
-  } catch {
-    // Browser preview: fall through to the development version.
-  }
-  return '0.1.0';
+  return getNativeAppVersion() ?? '0.1.0';
 }
 
 function prepareAudio(): void {
@@ -1681,8 +1546,7 @@ function prepareAudio(): void {
 function signalCue(): void {
   if (settings.vibration) {
     try {
-      if (window.Android && typeof window.Android.vibrate === 'function') window.Android.vibrate(35);
-      else if (navigator.vibrate) navigator.vibrate(35);
+      if (!nativeVibrate(35) && navigator.vibrate) navigator.vibrate(35);
     } catch {
       // Optional enhancement only.
     }
@@ -1747,7 +1611,7 @@ function createId(): string {
 }
 
 function exerciseIds(): ExerciseId[] {
-  return ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words', ...COGNITIVE_IDS];
+  return [...EXERCISE_IDS];
 }
 
 function escapeHtml(value: string): string {
@@ -1777,121 +1641,63 @@ function clearRuntimeTimers(): void {
   runtime.clockTimer = undefined;
 }
 
-const DB_NAME = 'entrenador-digital';
-const DB_VERSION = 3;
-const SESSION_STORE = 'sessions';
-const PRESET_STORE = 'presets';
-
-function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(SESSION_STORE)) {
-        const sessions = db.createObjectStore(SESSION_STORE, { keyPath: 'id' });
-        sessions.createIndex('finishedAt', 'finishedAt');
-      }
-      if (!db.objectStoreNames.contains(PRESET_STORE)) {
-        const presets = db.createObjectStore(PRESET_STORE, { keyPath: 'id' });
-        presets.createIndex('createdAt', 'createdAt');
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
 async function saveSession(session: StoredSession): Promise<void> {
-  await putRecord(SESSION_STORE, session);
+  try {
+    await dbPutRecord(SESSION_STORE, session);
+  } catch (error) {
+    console.error('No se pudo guardar la sesión', error);
+  }
 }
 
 async function savePreset(preset: Preset): Promise<void> {
-  await putRecord(PRESET_STORE, preset);
-}
-
-async function putRecord(storeName: string, value: StoredSession | Preset): Promise<void> {
   try {
-    const db = await openDatabase();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(storeName, 'readwrite');
-      transaction.objectStore(storeName).put(value);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
+    await dbPutRecord(PRESET_STORE, preset);
   } catch (error) {
-    console.error(`No se pudo guardar en ${storeName}`, error);
+    console.error('No se pudo guardar el preset', error);
   }
 }
 
 async function listSessions(): Promise<StoredSession[]> {
-  const values = await listRecords<StoredSession>(SESSION_STORE);
-  return values.sort((a, b) => b.finishedAt.localeCompare(a.finishedAt));
+  try {
+    const values = await dbListRecords<StoredSession>(SESSION_STORE);
+    return values.sort((a, b) => b.finishedAt.localeCompare(a.finishedAt));
+  } catch (error) {
+    console.error('No se pudo leer el historial', error);
+    return [];
+  }
 }
 
 async function listPresets(): Promise<Preset[]> {
-  const values = await listRecords<Preset>(PRESET_STORE);
-  return values.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-async function listRecords<T>(storeName: string): Promise<T[]> {
   try {
-    const db = await openDatabase();
-    const values = await new Promise<T[]>((resolve, reject) => {
-      const result: T[] = [];
-      const request = db.transaction(storeName, 'readonly').objectStore(storeName).openCursor();
-      request.onsuccess = () => {
-        const cursor = request.result;
-        if (cursor) {
-          result.push(cursor.value as T);
-          cursor.continue();
-        } else resolve(result);
-      };
-      request.onerror = () => reject(request.error);
-    });
-    db.close();
-    return values;
+    const values = await dbListRecords<Preset>(PRESET_STORE);
+    return values.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   } catch (error) {
-    console.error(`No se pudo leer ${storeName}`, error);
+    console.error('No se pudieron leer los presets', error);
     return [];
   }
 }
 
 async function deletePreset(id: string): Promise<void> {
   try {
-    const db = await openDatabase();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(PRESET_STORE, 'readwrite');
-      transaction.objectStore(PRESET_STORE).delete(id);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
+    await dbDeleteRecord(PRESET_STORE, id);
   } catch (error) {
     console.error('No se pudo eliminar el preset', error);
   }
 }
 
 async function clearSessions(): Promise<void> {
-  await clearStore(SESSION_STORE);
+  try {
+    await dbClearStore(SESSION_STORE);
+  } catch (error) {
+    console.error('No se pudo borrar el historial', error);
+  }
 }
 
 async function clearPresets(): Promise<void> {
-  await clearStore(PRESET_STORE);
-}
-
-async function clearStore(storeName: string): Promise<void> {
   try {
-    const db = await openDatabase();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(storeName, 'readwrite');
-      transaction.objectStore(storeName).clear();
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
+    await dbClearStore(PRESET_STORE);
   } catch (error) {
-    console.error(`No se pudo borrar ${storeName}`, error);
+    console.error('No se pudieron borrar los presets', error);
   }
 }
 
