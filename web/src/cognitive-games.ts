@@ -230,12 +230,21 @@ export function cognitiveTrainingNote(id: CognitiveExerciseId): string {
     return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Control por gestos</strong>Deslizá arriba, abajo, izquierda o derecha para responder. No hace falta tocar ningún botón.</div></div>';
   }
   if (id === 'memory-matrix') {
-    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Juego interactivo</strong>Memoriza la matriz mientras esté iluminada y después toca las casillas que recuerdes.</div></div>';
+    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Cómo jugar</strong>Memorizá las casillas iluminadas. Cuando se apaguen, marcá las mismas.</div></div>';
   }
   if (id === 'star-search') {
-    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Juego interactivo</strong>Toca directamente la figura que no tenga una pareja idéntica.</div></div>';
+    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Cómo jugar</strong>Encontrá la única figura sin pareja y tocala.</div></div>';
   }
-  return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Juego interactivo</strong>Responde en pantalla antes de que termine el tiempo de cada ronda.</div></div>';
+  if (id === 'memory-match') {
+    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Cómo jugar</strong>Compará cada carta con la que apareció algunos turnos atrás y respondé SÍ o NO.</div></div>';
+  }
+  if (id === 'spatial-match') {
+    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Cómo jugar</strong>Compará los dos patrones y elegí IGUAL o DIFERENTE.</div></div>';
+  }
+  if (id === 'rule-shift') {
+    return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Cómo jugar</strong>Elegí la figura con el mismo color o la misma forma, según indique la consigna.</div></div>';
+  }
+  return '<div class="training-mode-note cognitive-mode-note"><span>i</span><div><strong>Cómo jugar</strong>Respondé antes de que termine el tiempo de cada ronda.</div></div>';
 }
 
 export function cognitiveTrainingSubtitle(id: CognitiveExerciseId, config: CognitiveConfig): string {
