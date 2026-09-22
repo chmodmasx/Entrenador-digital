@@ -32,6 +32,11 @@ class NativeBridge(
     fun getAppVersion(): String = BuildConfig.VERSION_NAME
 
     @JavascriptInterface
+    fun checkForUpdates() {
+        activity.runOnUiThread { activity.checkForUpdatesManually() }
+    }
+
+    @JavascriptInterface
     fun saveBackup(json: String, suggestedName: String) {
         activity.runOnUiThread { backupManager.beginSave(json, suggestedName) }
     }
