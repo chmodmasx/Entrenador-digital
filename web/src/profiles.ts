@@ -1,98 +1,22 @@
-import { sanitizeTimingSeconds, timingPolicy } from './training-timing';
+import { sanitizeTimingSeconds } from './training-timing';
 import {
-  COLOR_IDS,
-  DEFAULT_WORDS,
-  DIRECTION_IDS,
   EXERCISE_META,
   type ColorId,
   type DirectionId,
   type ExerciseId,
   type StroopInstruction as StroopMode,
 } from './domain/exercises';
+import {
+  DEFAULT_CONFIGS,
+  cloneConfig,
+  cloneConfigMap,
+  type BaseConfig,
+  type ConfigMap,
+  type ExerciseConfig,
+} from './domain/config';
 
-interface BaseSnapshot {
-  repetitions: number;
-  waitMinMs: number;
-  waitMaxMs: number;
-  stimulusDurationMs: number;
-}
-
-interface ArrowsSnapshot extends BaseSnapshot {
-  kind: 'arrows';
-  directions: DirectionId[];
-}
-
-interface NumbersSnapshot extends BaseSnapshot {
-  kind: 'numbers';
-  minNumber: number;
-  maxNumber: number;
-}
-
-interface ColorsSnapshot extends BaseSnapshot {
-  kind: 'colors';
-  colors: ColorId[];
-}
-
-interface ColorNumberSnapshot extends BaseSnapshot {
-  kind: 'color-number';
-  minNumber: number;
-  maxNumber: number;
-  colors: ColorId[];
-}
-
-interface StroopSnapshot extends BaseSnapshot {
-  kind: 'stroop';
-  colors: ColorId[];
-  instruction: StroopMode;
-  allowMatches: boolean;
-}
-
-interface WordsSnapshot extends BaseSnapshot {
-  kind: 'words';
-  words: string[];
-}
-
-interface FlowSnapshot extends BaseSnapshot {
-  kind: 'flow';
-}
-
-interface MemoryMatchSnapshot extends BaseSnapshot {
-  kind: 'memory-match';
-  nBack: number;
-}
-
-interface MemoryMatrixSnapshot extends BaseSnapshot {
-  kind: 'memory-matrix';
-  gridSize: number;
-  memoryCells: number;
-}
-
-interface SpatialMatchSnapshot extends BaseSnapshot {
-  kind: 'spatial-match';
-  itemCount: number;
-}
-
-interface StarSearchSnapshot extends BaseSnapshot {
-  kind: 'star-search';
-  pairCount: number;
-}
-
-interface RuleShiftSnapshot extends BaseSnapshot {
-  kind: 'rule-shift';
-  optionCount: number;
-}
-
-type ExerciseSnapshot = ArrowsSnapshot | NumbersSnapshot | ColorsSnapshot | ColorNumberSnapshot | StroopSnapshot | WordsSnapshot | FlowSnapshot | MemoryMatchSnapshot | MemoryMatrixSnapshot | SpatialMatchSnapshot | StarSearchSnapshot | RuleShiftSnapshot;
-type SnapshotMap = Record<ExerciseId, ExerciseSnapshot>;
-
-interface TrainingProfile {
-  schemaVersion: 2;
-  id: string;
-  name: string;
-  configs: SnapshotMap;
-  createdAt: string;
-  updatedAt: string;
-}
+type ExerciseSnapshot = ExerciseConfig;
+type SnapshotMap = ConfigMap;
 
 interface SessionRecord {
   id?: string;
@@ -112,9 +36,6 @@ const PRESET_STORE = 'presets';
 const app = document.querySelector<HTMLDivElement>('#app');
 
 
-const allDirections: DirectionId[] = [...DIRECTION_IDS];
-const allColors: ColorId[] = [...COLOR_IDS];
-
 let profiles: TrainingProfile[] = profileLoadAll();
 let activeProfileId = localStorage.getItem(ACTIVE_KEY) ?? '';
 let cachedScreen: HTMLElement | null = null;
@@ -127,64 +48,12 @@ let lastTaggedSessionId = '';
 profileEnsureState();
 void profileClearOldPresets();
 
-function profileTimingDefaults(kind: ExerciseId): Pick<BaseSnapshot, 'waitMinMs' | 'waitMaxMs' | 'stimulusDurationMs'> {
-  const policy = timingPolicy(kind);
-  return {
-    waitMinMs: Math.round(policy.defaultWaitMin * 1000),
-    waitMaxMs: Math.round(policy.defaultWaitMax * 1000),
-    stimulusDurationMs: Math.round(policy.defaultDuration * 1000),
-  };
-}
-
 function profileDefaults(): SnapshotMap {
-  return {
-    arrows: {
-      kind: 'arrows', repetitions: 20, ...profileTimingDefaults('arrows'),
-      directions: [...allDirections],
-    },
-    numbers: {
-      kind: 'numbers', repetitions: 20, ...profileTimingDefaults('numbers'),
-      minNumber: 1, maxNumber: 9,
-    },
-    colors: {
-      kind: 'colors', repetitions: 20, ...profileTimingDefaults('colors'),
-      colors: [...allColors],
-    },
-    'color-number': {
-      kind: 'color-number', repetitions: 20, ...profileTimingDefaults('color-number'),
-      minNumber: 1, maxNumber: 9, colors: [...allColors],
-    },
-    stroop: {
-      kind: 'stroop', repetitions: 20, ...profileTimingDefaults('stroop'),
-      colors: [...allColors], instruction: 'ink', allowMatches: false,
-    },
-    words: {
-      kind: 'words', repetitions: 20, ...profileTimingDefaults('words'),
-      words: [...DEFAULT_WORDS],
-    },
-    flow: {
-      kind: 'flow', repetitions: 20, ...profileTimingDefaults('flow'),
-    },
-    'memory-match': {
-      kind: 'memory-match', repetitions: 24, ...profileTimingDefaults('memory-match'), nBack: 2,
-    },
-    'memory-matrix': {
-      kind: 'memory-matrix', repetitions: 12, ...profileTimingDefaults('memory-matrix'), gridSize: 4, memoryCells: 5,
-    },
-    'spatial-match': {
-      kind: 'spatial-match', repetitions: 20, ...profileTimingDefaults('spatial-match'), itemCount: 4,
-    },
-    'star-search': {
-      kind: 'star-search', repetitions: 12, ...profileTimingDefaults('star-search'), pairCount: 4,
-    },
-    'rule-shift': {
-      kind: 'rule-shift', repetitions: 20, ...profileTimingDefaults('rule-shift'), optionCount: 3,
-    },
-  };
+  return cloneConfigMap(DEFAULT_CONFIGS);
 }
 
 function profileCloneConfigs(source: SnapshotMap): SnapshotMap {
-  return JSON.parse(JSON.stringify(source)) as SnapshotMap;
+  return cloneConfigMap(source);
 }
 
 function profileCreate(name: string, source?: SnapshotMap): TrainingProfile {
@@ -255,14 +124,14 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
 }
 
 function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: ExerciseSnapshot | undefined, fallback: T): T {
-  if (!candidate || candidate.kind !== fallback.kind) return JSON.parse(JSON.stringify(fallback)) as T;
+  if (!candidate || candidate.kind !== fallback.kind) return cloneConfig(fallback);
 
   const raw = candidate as ExerciseSnapshot & {
     waitMin?: number;
     waitMax?: number;
     stimulusDuration?: number;
   };
-  const merged = { ...JSON.parse(JSON.stringify(fallback)), ...candidate } as T;
+  const merged = { ...cloneConfig(fallback), ...candidate } as T;
 
   const waitMinSeconds = Number.isFinite(raw.waitMinMs)
     ? Number(raw.waitMinMs) / 1000
@@ -441,7 +310,7 @@ function profileFieldNumber(form: HTMLFormElement, id: string): number {
   return input ? profileParseNumber(input.value) : Number.NaN;
 }
 
-function profileReadBase(form: HTMLFormElement): BaseSnapshot | null {
+function profileReadBase(form: HTMLFormElement): BaseConfig | null {
   const repetitions = profileFieldNumber(form, 'repetitions');
   const roundPauseInput = form.querySelector<HTMLInputElement>('#roundPause');
   const stimulusDuration = profileFieldNumber(form, 'stimulusDuration');
