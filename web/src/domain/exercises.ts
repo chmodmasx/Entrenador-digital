@@ -3,6 +3,27 @@ export type CognitiveExerciseId = 'flow' | 'memory-match' | 'memory-matrix' | 's
 export type ExerciseId = PassiveExerciseId | CognitiveExerciseId;
 export type ExerciseCategory = 'reaction' | 'cognitive';
 
+export type DirectionId =
+  | 'up'
+  | 'up-right'
+  | 'right'
+  | 'down-right'
+  | 'down'
+  | 'down-left'
+  | 'left'
+  | 'up-left';
+
+export type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
+export type StroopInstruction = 'ink' | 'word';
+
+export const DIRECTION_IDS: DirectionId[] = [
+  'up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left',
+];
+
+export const COLOR_IDS: ColorId[] = ['blue', 'red', 'green', 'yellow', 'orange', 'violet'];
+
+export const DEFAULT_WORDS = ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'] as const;
+
 export interface ExerciseMeta {
   title: string;
   subtitle: string;
