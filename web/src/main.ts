@@ -16,6 +16,7 @@ import {
   DEFAULT_CONFIGS,
   cloneConfig,
   cloneConfigMap,
+  setExerciseConfig,
   type CognitiveConfig,
   type ExerciseConfig,
 } from './domain/config';
@@ -126,7 +127,7 @@ function renderConfig(): void {
   mountConfigScreen(app, selectedExercise, configs[selectedExercise], {
     onBack: () => navigate('home'),
     onStart: (config) => {
-      configs[selectedExercise] = config;
+      setExerciseConfig(configs, config);
       prepareAudio();
       startTraining();
     },
@@ -418,7 +419,7 @@ function renderResults(): void {
     onBack: () => navigate('home'),
     onRepeat: (session) => {
       selectedExercise = session.exercise;
-      configs[selectedExercise] = cloneConfig(session.config);
+      setExerciseConfig(configs, cloneConfig(session.config));
       prepareAudio();
       startTraining();
     },
