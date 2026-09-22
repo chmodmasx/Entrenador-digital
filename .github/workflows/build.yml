@@ -35,12 +35,21 @@ jobs:
           set -o pipefail
           npm run build 2>&1 | tee build.log
 
+      - name: Run web tests
+        working-directory: web
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test.log
+
       - name: Upload web build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: web-build-log
-          path: web/build.log
+          path: |
+            web/build.log
+            web/test.log
           if-no-files-found: ignore
 
       - name: Setup Java
