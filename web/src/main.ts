@@ -36,6 +36,7 @@ import { exportBackup, requestBackupImport } from './backup';
 import { profileEnhanceCurrentScreen } from './profiles';
 import { mountHomeScreen } from './screens/home';
 import { mountSettingsScreen } from './screens/settings';
+import { mountHistoryScreen } from './screens/history';
 import {
   SESSION_STORE,
   clearStore as dbClearStore,
@@ -1098,54 +1099,27 @@ function specificResultDetails(config: ExerciseConfig): string {
 }
 
 async function renderHistory(): Promise<void> {
-  app.innerHTML = `
-    <main class="app-shell history-screen">
-      <header class="topbar">
-        <button class="icon-button" data-action="back" aria-label="Volver">←</button>
-        <div><h1>Historial</h1><p>Sesiones de entrenamiento guardadas</p></div>
-        <div class="topbar-spacer"></div>
-      </header>
-      <div class="history-filter-row" id="history-filters"></div>
-      <div class="history-list" id="history-list"><p class="loading">Cargando…</p></div>
-    </main>`;
+  const actions = {
+    onBack: () => navigate('home'),
+    onTrain: () => navigate('home'),
+  };
+  mountHistoryScreen(app, null, actions);
 
-  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', () => navigate('home'));
   const sessions = await listSessions();
   if (screen !== 'history') return;
-  renderHistoryContent(sessions, 'all');
-}
 
-function renderHistoryContent(sessions: StoredSession[], filter: ExerciseId | 'all'): void {
-  const filters = app.querySelector<HTMLDivElement>('#history-filters');
-  const list = app.querySelector<HTMLDivElement>('#history-list');
-  if (!filters || !list) return;
-
-  const usedExercises = exerciseIds().filter((id) => sessions.some((session) => session.exercise === id));
-  filters.innerHTML = [
-    `<button class="filter-chip ${filter === 'all' ? 'is-active' : ''}" data-filter="all">Todos</button>`,
-    ...usedExercises.map((id) => `<button class="filter-chip ${filter === id ? 'is-active' : ''}" data-filter="${id}">${exerciseMeta[id].title}</button>`),
-  ].join('');
-
-  filters.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach((button) => {
-    button.addEventListener('click', () => renderHistoryContent(sessions, button.dataset.filter as ExerciseId | 'all'));
-  });
-
-  const visible = filter === 'all' ? sessions : sessions.filter((session) => session.exercise === filter);
-  if (!visible.length) {
-    list.innerHTML = '<div class="empty-state"><div>◷</div><h2>Todavía no hay sesiones</h2><p>Completa un entrenamiento y aparecerá aquí.</p><button class="primary-button" data-action="train">Entrenar ahora</button></div>';
-    list.querySelector<HTMLButtonElement>('[data-action="train"]')?.addEventListener('click', () => navigate('home'));
-    return;
-  }
-
-  list.innerHTML = visible.map((session) => {
-    const meta = exerciseMeta[session.exercise] ?? exerciseMeta.arrows;
-    const date = new Date(session.finishedAt);
-    return `<article class="history-card">
-      <div class="history-symbol history-symbol-${session.exercise}">${meta.symbol}</div>
-      <div class="history-copy"><strong>${meta.title}</strong><span>${date.toLocaleDateString('es-AR')} · ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span></div>
-      <div class="history-score"><strong>${session.summary.scored ? `${Math.round((session.summary.accuracy ?? 0) * 100)}% aciertos` : `${session.summary.completed} estímulos`}</strong><span>${formatDuration(session.summary.durationMs)}</span></div>
-    </article>`;
-  }).join('');
+  mountHistoryScreen(
+    app,
+    sessions.map((session) => ({
+      exercise: session.exercise,
+      finishedAt: session.finishedAt,
+      completed: session.summary.completed,
+      scored: session.summary.scored,
+      accuracy: session.summary.accuracy,
+      durationMs: session.summary.durationMs,
+    })),
+    actions,
+  );
 }
 
 function renderSettings(): void {
