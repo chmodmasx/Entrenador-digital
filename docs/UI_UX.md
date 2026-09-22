@@ -58,7 +58,7 @@ Sistema base de 4 px con escalones preferidos: 4, 8, 12, 16, 20, 24, 32 y 40 px.
 ## Accesibilidad
 
 - Objetivo WCAG AA en contraste de texto y controles.
-- Área táctil mínima de 48 × 48 CSS px para acciones esenciales.
+- Área táctil objetivo de 44–48 CSS px para acciones esenciales.
 - Estados de foco visibles.
 - No comunicar estados importantes únicamente mediante color.
 - Soportar aumento de texto sin cortar controles principales.
@@ -80,14 +80,16 @@ Ejemplos:
 
 ## Pantalla de inicio
 
-Debe mostrar el nombre y propósito de la app y ofrecer inmediatamente los seis ejercicios principales.
+Debe mostrar el nombre y propósito de la app y ofrecer inmediatamente los ejercicios disponibles, priorizando inicio rápido y descubribilidad.
 
 Orden:
 
 1. Cabecera de marca.
 2. Mensaje breve de entrenamiento.
-3. Cuadrícula de ejercicios de 2 columnas.
-4. Accesos a Historial, Presets y Ajustes.
+3. Perfil activo y estado de autosave.
+4. Carrusel de ejercicios de 2 columnas con targets táctiles amplios.
+5. Acceso rápido ▶ para iniciar con la configuración del perfil activo.
+6. Accesos a Historial y Ajustes.
 
 ## Configuración — Flechas
 
@@ -181,3 +183,18 @@ Esas métricas sólo serán válidas para futuros modos que realmente observen u
 Diseño mobile-first con soporte explícito para portrait y landscape. No se diseñará alrededor de resoluciones fijas. Se utilizarán `clamp()`, `min()`, `max()`, grid/flex y unidades relativas, con fallbacks para WebView antiguos.
 
 La configuración de ocho direcciones usa dos columnas en teléfonos y puede expandirse a cuatro columnas cuando el ancho disponible sea suficiente.
+
+
+## Usuario recurrente
+
+La configuración detallada sigue disponible al tocar la tarjeta del ejercicio. Cada tarjeta también ofrece una acción ▶ separada que inicia utilizando el perfil activo, evitando recorrer la pantalla de configuración cuando los parámetros ya están definidos.
+
+La cabecera de marca se mantiene como identidad visual, pero no debe desplazar innecesariamente el contenido funcional.
+
+## Controles numéricos
+
+Los steppers aceptan coma y punto decimal y mantienen un único texto editable visible. Los botones +/− permiten pulsación mantenida. El valor se normaliza al perder foco y nunca depende de validación inconsistente de `input[type=number]` entre versiones de Android WebView.
+
+## Movimiento
+
+Las transiciones son complementarias. Cuando el sistema indica `prefers-reduced-motion: reduce`, desplazamientos suaves, animaciones y transiciones se reducen al mínimo.
