@@ -700,8 +700,8 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
 
     root.innerHTML = `
       <div class="cognitive-game rule-game">
-        <div class="rule-instruction">${rule === 'color' ? 'BUSCÁ EL MISMO COLOR' : 'BUSCÁ LA MISMA FORMA'}</div>
         <div class="rule-target-wrap">${rulePiece(target, 'rule-target')}</div>
+        <div class="rule-instruction" aria-label="Regla activa: ${rule === 'color' ? 'color' : 'forma'}">${rule === 'color' ? 'COLOR' : 'FORMA'}</div>
         <div class="rule-options">
           ${options.map((item, index) => `<button type="button" data-rule-index="${index}">${rulePiece(item, '')}</button>`).join('')}
         </div>
