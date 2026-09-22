@@ -1,16 +1,6 @@
-export type TrainingExerciseKind =
-  | 'arrows'
-  | 'numbers'
-  | 'colors'
-  | 'color-number'
-  | 'stroop'
-  | 'words'
-  | 'flow'
-  | 'memory-match'
-  | 'memory-matrix'
-  | 'spatial-match'
-  | 'star-search'
-  | 'rule-shift';
+import type { ExerciseId } from './domain/exercises';
+
+export type TrainingExerciseKind = ExerciseId;
 
 export interface TimingPolicy {
   pauseMode: 'random' | 'fixed';
