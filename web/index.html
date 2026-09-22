@@ -10,57 +10,13 @@
     <link rel="stylesheet" href="/src/refinements.css" />
     <link rel="stylesheet" href="/src/home-shortcuts.css" />
     <link rel="stylesheet" href="/src/profiles.css" />
-    <link rel="stylesheet" href="/src/profile-context-navigation.css" />
     <link rel="stylesheet" href="/src/nbs-brand.css" />
     <link rel="stylesheet" href="/src/premium-theme.css" />
     <link rel="stylesheet" href="/src/ui-consistency.css" />
     <link rel="stylesheet" href="/src/system-chrome.css" />
-    <script>
-      (function () {
-        document.addEventListener('DOMContentLoaded', function () {
-          var app = document.getElementById('app');
-
-          /* Keep native fullscreen and KEEP_SCREEN_ON synchronized with the web
-             application's training state. The exercise engine itself stays web-only. */
-          function syncNativeTrainingMode() {
-            if (window.Android && typeof window.Android.setTrainingMode === 'function') {
-              window.Android.setTrainingMode(document.body.classList.contains('is-training'));
-            }
-          }
-
-          /* The extended top gradient belongs only to Home. Internal screens keep
-             a flat light surface while the Android status-bar strip stays dark. */
-          function syncScreenChrome() {
-            var isHome = !!(app && app.querySelector('.home-screen'));
-            document.body.classList.toggle('is-home', isHome);
-          }
-
-          syncNativeTrainingMode();
-          syncScreenChrome();
-
-          if (window.MutationObserver) {
-            new MutationObserver(syncNativeTrainingMode).observe(document.body, {
-              attributes: true,
-              attributeFilter: ['class']
-            });
-
-            if (app) {
-              new MutationObserver(syncScreenChrome).observe(app, {
-                childList: true,
-                subtree: true
-              });
-            }
-          }
-        });
-      }());
-    </script>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/ui-fixes.ts"></script>
     <script type="module" src="/src/main.ts"></script>
-    <script type="module" src="/src/profiles.ts"></script>
-    <script type="module" src="/src/profile-context-navigation.ts"></script>
-    <script type="module" src="/src/backup.ts"></script>
   </body>
 </html>

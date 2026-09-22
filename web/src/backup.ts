@@ -1,10 +1,12 @@
-export {};
-
-type NativeBackupBridge = {
-  saveBackup?: (json: string, suggestedName: string) => void;
-  openBackup?: () => void;
-  getAppVersion?: () => string;
-};
+import { nativeBridge } from './platform/native-bridge';
+import { DB_NAME, PRESET_STORE, SESSION_STORE, openDatabase } from './storage/database';
+import {
+  APP_STORAGE_PREFIX,
+  BACKUP_FORMAT,
+  BACKUP_SCHEMA_VERSION,
+  parseBackup,
+  type BackupPayload,
+} from './storage/backup-schema';
 
 declare global {
   interface Window {
@@ -12,79 +14,27 @@ declare global {
   }
 }
 
-interface BackupPayload {
-  format: 'entrenador-digital-backup';
-  schemaVersion: 1;
-  exportedAt: string;
-  appVersion: string;
-  localStorage: Record<string, string>;
-  indexedDb: {
-    name: 'entrenador-digital';
-    stores: Record<string, unknown[]>;
-  };
-}
+const BACKUP_STORES = [SESSION_STORE, PRESET_STORE] as const;
 
-const DB_NAME = 'entrenador-digital';
-const BACKUP_STORES = ['sessions', 'presets'];
-const APP_STORAGE_PREFIX = 'entrenador-digital-';
-const app = document.querySelector<HTMLDivElement>('#app');
-
-function nativeBridge(): NativeBackupBridge | undefined {
-  return (window as unknown as { Android?: NativeBackupBridge }).Android;
-}
-
-if (app) {
-  const observer = new MutationObserver(() => window.setTimeout(enhanceSettingsBackup, 0));
-  observer.observe(app, { childList: true, subtree: true });
-  window.setTimeout(enhanceSettingsBackup, 0);
-}
 
 window.__ENTRENADOR_IMPORT_BACKUP = (raw: string): void => {
   void importBackupPayload(raw);
 };
 
-function enhanceSettingsBackup(): void {
-  const settings = app?.querySelector<HTMLElement>('.settings-screen');
-  if (!settings) return;
+export function requestBackupImport(): void {
+  const native = nativeBridge();
+  if (!native?.openBackup) {
+    window.alert('La importación de copias está disponible en la aplicación Android.');
+    return;
+  }
 
-  const dataTitle = Array.from(settings.querySelectorAll<HTMLElement>('.section-title h2'))
-    .find((heading) => heading.textContent?.trim() === 'Datos locales');
-  const card = dataTitle?.closest<HTMLElement>('.settings-card');
-  const title = dataTitle?.closest<HTMLElement>('.section-title');
-  if (!card || !title || card.dataset.backupEnhanced === 'true') return;
-
-  card.dataset.backupEnhanced = 'true';
-
-  const exportButton = document.createElement('button');
-  exportButton.type = 'button';
-  exportButton.className = 'settings-action-row';
-  exportButton.dataset.action = 'export-backup';
-  exportButton.innerHTML = '<span><strong>Exportar copia de seguridad</strong><small>Guarda perfiles, ajustes e historial en un archivo JSON</small></span><b>›</b>';
-
-  const importButton = document.createElement('button');
-  importButton.type = 'button';
-  importButton.className = 'settings-action-row';
-  importButton.dataset.action = 'import-backup';
-  importButton.innerHTML = '<span><strong>Importar copia de seguridad</strong><small>Restaura datos guardados anteriormente</small></span><b>›</b>';
-
-  title.after(exportButton, importButton);
-
-  exportButton.addEventListener('click', () => void exportBackup());
-  importButton.addEventListener('click', () => {
-    const native = nativeBridge();
-    if (!native?.openBackup) {
-      window.alert('La importación de copias está disponible en la aplicación Android.');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      'La importación reemplazará los perfiles, ajustes e historial actuales. ¿Querés continuar?'
-    );
-    if (confirmed) native.openBackup();
-  });
+  const confirmed = window.confirm(
+    'La importación reemplazará los perfiles, ajustes e historial actuales. ¿Querés continuar?'
+  );
+  if (confirmed) native.openBackup();
 }
 
-async function exportBackup(): Promise<void> {
+export async function exportBackup(): Promise<void> {
   try {
     const payload = await collectBackup();
     const json = JSON.stringify(payload, null, 2);
@@ -114,7 +64,7 @@ async function collectBackup(): Promise<BackupPayload> {
   const storage: Record<string, string> = {};
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
-    if (!key) continue;
+    if (!key?.startsWith(APP_STORAGE_PREFIX)) continue;
     const value = localStorage.getItem(key);
     if (value !== null) storage[key] = value;
   }
@@ -132,8 +82,8 @@ async function collectBackup(): Promise<BackupPayload> {
   }
 
   return {
-    format: 'entrenador-digital-backup',
-    schemaVersion: 1,
+    format: BACKUP_FORMAT,
+    schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     appVersion: nativeBridge()?.getAppVersion?.() ?? 'web',
     localStorage: storage,
@@ -144,13 +94,6 @@ async function collectBackup(): Promise<BackupPayload> {
   };
 }
 
-function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('No se pudo abrir la base local'));
-  });
-}
 
 function readAll(db: IDBDatabase, storeName: string): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
@@ -174,22 +117,18 @@ function readAll(db: IDBDatabase, storeName: string): Promise<unknown[]> {
 
 async function importBackupPayload(raw: string): Promise<void> {
   try {
-    const parsed = JSON.parse(raw) as Partial<BackupPayload>;
-    if (
-      parsed.format !== 'entrenador-digital-backup' ||
-      parsed.schemaVersion !== 1 ||
-      !parsed.localStorage ||
-      typeof parsed.localStorage !== 'object' ||
-      !parsed.indexedDb ||
-      parsed.indexedDb.name !== DB_NAME ||
-      !parsed.indexedDb.stores ||
-      typeof parsed.indexedDb.stores !== 'object'
-    ) {
-      throw new Error('Formato de copia no reconocido');
-    }
+    const parsed = parseBackup(raw);
+    const previousStorage = snapshotAppLocalStorage();
+    const previousStores = await snapshotStores();
 
-    await restoreIndexedDb(parsed.indexedDb.stores as Record<string, unknown[]>);
-    restoreLocalStorage(parsed.localStorage as Record<string, string>);
+    try {
+      await restoreIndexedDb(parsed.indexedDb.stores);
+      restoreLocalStorage(parsed.localStorage);
+    } catch (restoreError) {
+      await restoreIndexedDb(previousStores).catch(() => undefined);
+      restoreLocalStorage(previousStorage);
+      throw restoreError;
+    }
 
     window.alert('Copia de seguridad restaurada correctamente. La app se reiniciará para aplicar los datos.');
     window.location.reload();
@@ -199,6 +138,29 @@ async function importBackupPayload(raw: string): Promise<void> {
   }
 }
 
+function snapshotAppLocalStorage(): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key?.startsWith(APP_STORAGE_PREFIX)) continue;
+    const value = localStorage.getItem(key);
+    if (value !== null) values[key] = value;
+  }
+  return values;
+}
+
+async function snapshotStores(): Promise<Record<string, unknown[]>> {
+  const db = await openDatabase();
+  try {
+    const stores: Record<string, unknown[]> = {};
+    for (const storeName of BACKUP_STORES) {
+      stores[storeName] = db.objectStoreNames.contains(storeName) ? await readAll(db, storeName) : [];
+    }
+    return stores;
+  } finally {
+    db.close();
+  }
+}
 function restoreLocalStorage(values: Record<string, string>): void {
   const keysToRemove: string[] = [];
   for (let index = 0; index < localStorage.length; index += 1) {
@@ -217,25 +179,23 @@ function restoreLocalStorage(values: Record<string, string>): void {
 async function restoreIndexedDb(stores: Record<string, unknown[]>): Promise<void> {
   const db = await openDatabase();
   try {
-    for (const storeName of BACKUP_STORES) {
-      if (!db.objectStoreNames.contains(storeName)) continue;
-      const records = Array.isArray(stores[storeName]) ? stores[storeName] : [];
-      await replaceStore(db, storeName, records);
-    }
+    const storeNames = BACKUP_STORES.filter((storeName) => db.objectStoreNames.contains(storeName));
+    if (!storeNames.length) return;
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(storeNames, 'readwrite');
+      for (const storeName of storeNames) {
+        const store = transaction.objectStore(storeName);
+        store.clear();
+        const records = Array.isArray(stores[storeName]) ? stores[storeName] : [];
+        records.forEach((record) => store.put(record));
+      }
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('No se pudo restaurar la base local'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Restauración cancelada'));
+    });
   } finally {
     db.close();
   }
-}
-
-function replaceStore(db: IDBDatabase, storeName: string, records: unknown[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    store.clear();
-    records.forEach((record) => store.put(record));
-
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error(`No se pudo restaurar ${storeName}`));
-    transaction.onabort = () => reject(transaction.error ?? new Error(`Restauración cancelada en ${storeName}`));
-  });
 }

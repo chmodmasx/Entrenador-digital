@@ -1,87 +1,25 @@
-import { sanitizeTimingSeconds, timingPolicy } from './training-timing';
+import {
+  EXERCISE_META,
+  type ColorId,
+  type DirectionId,
+  type ExerciseId,
+  type StroopInstruction as StroopMode,
+} from './domain/exercises';
+import {
+  DEFAULT_CONFIGS,
+  cloneConfigMap,
+  setExerciseConfig,
+  type BaseConfig,
+  type ConfigMap,
+  type ExerciseConfig,
+} from './domain/config';
+import { normalizeStoredExerciseConfig } from './domain/profile-migration';
 
-type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words' | 'flow' | 'memory-match' | 'memory-matrix' | 'spatial-match' | 'star-search' | 'rule-shift';
-type DirectionId = 'up' | 'up-right' | 'right' | 'down-right' | 'down' | 'down-left' | 'left' | 'up-left';
-type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
-type StroopMode = 'ink' | 'word';
-
-interface BaseSnapshot {
-  repetitions: number;
-  waitMin: number;
-  waitMax: number;
-  stimulusDuration: number;
-}
-
-interface ArrowsSnapshot extends BaseSnapshot {
-  kind: 'arrows';
-  directions: DirectionId[];
-}
-
-interface NumbersSnapshot extends BaseSnapshot {
-  kind: 'numbers';
-  minNumber: number;
-  maxNumber: number;
-}
-
-interface ColorsSnapshot extends BaseSnapshot {
-  kind: 'colors';
-  colors: ColorId[];
-}
-
-interface ColorNumberSnapshot extends BaseSnapshot {
-  kind: 'color-number';
-  minNumber: number;
-  maxNumber: number;
-  colors: ColorId[];
-}
-
-interface StroopSnapshot extends BaseSnapshot {
-  kind: 'stroop';
-  colors: ColorId[];
-  instruction: StroopMode;
-  allowMatches: boolean;
-}
-
-interface WordsSnapshot extends BaseSnapshot {
-  kind: 'words';
-  words: string[];
-}
-
-interface FlowSnapshot extends BaseSnapshot {
-  kind: 'flow';
-}
-
-interface MemoryMatchSnapshot extends BaseSnapshot {
-  kind: 'memory-match';
-  nBack: number;
-}
-
-interface MemoryMatrixSnapshot extends BaseSnapshot {
-  kind: 'memory-matrix';
-  gridSize: number;
-  memoryCells: number;
-}
-
-interface SpatialMatchSnapshot extends BaseSnapshot {
-  kind: 'spatial-match';
-  itemCount: number;
-}
-
-interface StarSearchSnapshot extends BaseSnapshot {
-  kind: 'star-search';
-  pairCount: number;
-}
-
-interface RuleShiftSnapshot extends BaseSnapshot {
-  kind: 'rule-shift';
-  optionCount: number;
-}
-
-type ExerciseSnapshot = ArrowsSnapshot | NumbersSnapshot | ColorsSnapshot | ColorNumberSnapshot | StroopSnapshot | WordsSnapshot | FlowSnapshot | MemoryMatchSnapshot | MemoryMatrixSnapshot | SpatialMatchSnapshot | StarSearchSnapshot | RuleShiftSnapshot;
-type SnapshotMap = Record<ExerciseId, ExerciseSnapshot>;
+type ExerciseSnapshot = ExerciseConfig;
+type SnapshotMap = ConfigMap;
 
 interface TrainingProfile {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   name: string;
   configs: SnapshotMap;
@@ -106,27 +44,11 @@ const PRESET_STORE = 'presets';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 
-const exerciseTitles: Record<ExerciseId, string> = {
-  arrows: 'Flechas',
-  numbers: 'Números',
-  colors: 'Colores',
-  'color-number': 'Color + número',
-  stroop: 'Color y palabra',
-  words: 'Palabras',
-  flow: 'Ebb & Flow',
-  'memory-match': 'Memory Match',
-  'memory-matrix': 'Memory Matrix',
-  'spatial-match': 'Spatial Speed Match',
-  'star-search': 'Star Search',
-  'rule-shift': 'Disillusion',
-};
-
-const allDirections: DirectionId[] = ['up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left'];
-const allColors: ColorId[] = ['blue', 'red', 'green', 'yellow', 'orange', 'violet'];
 
 let profiles: TrainingProfile[] = profileLoadAll();
 let activeProfileId = localStorage.getItem(ACTIVE_KEY) ?? '';
-let cachedHome: HTMLElement | null = null;
+let cachedScreen: HTMLElement | null = null;
+let cachedScrollY = 0;
 let profilesScreenOpen = false;
 let applying = false;
 let autosaveTimer: number | undefined;
@@ -135,76 +57,18 @@ let lastTaggedSessionId = '';
 profileEnsureState();
 void profileClearOldPresets();
 
-if (app) {
-  const observer = new MutationObserver(() => window.setTimeout(profileEnhanceScreen, 0));
-  observer.observe(app, { childList: true, subtree: true });
-  window.setTimeout(profileEnhanceScreen, 0);
-}
-
-function profileTimingDefaults(kind: ExerciseId): Pick<BaseSnapshot, 'waitMin' | 'waitMax' | 'stimulusDuration'> {
-  const policy = timingPolicy(kind);
-  return {
-    waitMin: policy.defaultWaitMin,
-    waitMax: policy.defaultWaitMax,
-    stimulusDuration: policy.defaultDuration,
-  };
-}
-
 function profileDefaults(): SnapshotMap {
-  return {
-    arrows: {
-      kind: 'arrows', repetitions: 20, ...profileTimingDefaults('arrows'),
-      directions: [...allDirections],
-    },
-    numbers: {
-      kind: 'numbers', repetitions: 20, ...profileTimingDefaults('numbers'),
-      minNumber: 1, maxNumber: 9,
-    },
-    colors: {
-      kind: 'colors', repetitions: 20, ...profileTimingDefaults('colors'),
-      colors: [...allColors],
-    },
-    'color-number': {
-      kind: 'color-number', repetitions: 20, ...profileTimingDefaults('color-number'),
-      minNumber: 1, maxNumber: 9, colors: [...allColors],
-    },
-    stroop: {
-      kind: 'stroop', repetitions: 20, ...profileTimingDefaults('stroop'),
-      colors: [...allColors], instruction: 'ink', allowMatches: false,
-    },
-    words: {
-      kind: 'words', repetitions: 20, ...profileTimingDefaults('words'),
-      words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
-    },
-    flow: {
-      kind: 'flow', repetitions: 20, ...profileTimingDefaults('flow'),
-    },
-    'memory-match': {
-      kind: 'memory-match', repetitions: 24, ...profileTimingDefaults('memory-match'), nBack: 2,
-    },
-    'memory-matrix': {
-      kind: 'memory-matrix', repetitions: 12, ...profileTimingDefaults('memory-matrix'), gridSize: 4, memoryCells: 5,
-    },
-    'spatial-match': {
-      kind: 'spatial-match', repetitions: 20, ...profileTimingDefaults('spatial-match'), itemCount: 4,
-    },
-    'star-search': {
-      kind: 'star-search', repetitions: 12, ...profileTimingDefaults('star-search'), pairCount: 4,
-    },
-    'rule-shift': {
-      kind: 'rule-shift', repetitions: 20, ...profileTimingDefaults('rule-shift'), optionCount: 3,
-    },
-  };
+  return cloneConfigMap(DEFAULT_CONFIGS);
 }
 
 function profileCloneConfigs(source: SnapshotMap): SnapshotMap {
-  return JSON.parse(JSON.stringify(source)) as SnapshotMap;
+  return cloneConfigMap(source);
 }
 
 function profileCreate(name: string, source?: SnapshotMap): TrainingProfile {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: profileCreateId(),
     name,
     configs: source ? profileCloneConfigs(source) : profileDefaults(),
@@ -259,7 +123,7 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
   };
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: typeof candidate.id === 'string' && candidate.id ? candidate.id : profileCreateId(),
     name: typeof candidate.name === 'string' && candidate.name.trim() ? candidate.name.trim() : 'Sin nombre',
     configs,
@@ -268,25 +132,8 @@ function profileNormalize(candidate: Partial<TrainingProfile>): TrainingProfile 
   };
 }
 
-function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: ExerciseSnapshot | undefined, fallback: T): T {
-  if (!candidate || candidate.kind !== fallback.kind) return JSON.parse(JSON.stringify(fallback)) as T;
-
-  const merged = { ...JSON.parse(JSON.stringify(fallback)), ...candidate } as T;
-  const timing = sanitizeTimingSeconds(
-    merged.kind,
-    Number(merged.waitMin),
-    Number(merged.waitMax),
-    Number(merged.stimulusDuration),
-  );
-
-  merged.waitMin = timing.waitMin;
-  merged.waitMax = timing.waitMax;
-  merged.stimulusDuration = timing.stimulusDuration;
-  merged.repetitions = Number.isFinite(merged.repetitions)
-    ? Math.min(200, Math.max(2, Math.round(merged.repetitions)))
-    : fallback.repetitions;
-
-  return merged;
+function profileNormalizeExercise<T extends ExerciseSnapshot>(candidate: unknown, fallback: T): T {
+  return normalizeStoredExerciseConfig(candidate, fallback);
 }
 
 function profileEnsureState(): void {
@@ -312,6 +159,10 @@ function profilePersistActive(): void {
   localStorage.setItem(ACTIVE_KEY, activeProfileId);
 }
 
+export function profileEnhanceCurrentScreen(): void {
+  profileEnhanceScreen();
+}
+
 function profileEnhanceScreen(): void {
   if (!app || profilesScreenOpen) return;
 
@@ -327,7 +178,6 @@ function profileEnhanceScreen(): void {
   const settings = app.querySelector<HTMLElement>('.settings-screen');
   if (settings) profileEnhanceSettings(settings);
 
-  if (app.querySelector('.presets-screen')) profileOpenScreen();
 }
 
 function profileIconSvg(): string {
@@ -335,8 +185,6 @@ function profileIconSvg(): string {
 }
 
 function profileEnhanceHome(home: HTMLElement): void {
-  home.querySelector<HTMLElement>('[data-action="presets"]')?.remove();
-
   let entry = home.querySelector<HTMLButtonElement>('[data-profile-entry]');
   if (!entry) {
     entry = document.createElement('button');
@@ -366,7 +214,6 @@ function profileEnhanceConfig(root: HTMLElement): void {
   const form = root.querySelector<HTMLFormElement>('#exercise-config');
   if (!form) return;
 
-  root.querySelector<HTMLElement>('[data-action="save-preset"]')?.remove();
   root.querySelector('.config-actions')?.classList.add('profile-config-actions');
 
   const exercise = profileCurrentExercise(root);
@@ -380,6 +227,19 @@ function profileEnhanceConfig(root: HTMLElement): void {
     root.querySelector('.exercise-intro-card')?.before(context);
   }
   profileRenderContext(context, false);
+  context.dataset.profileContextLink = 'true';
+  context.setAttribute('role', 'button');
+  context.setAttribute('tabindex', '0');
+  context.setAttribute('aria-label', `Abrir perfiles. Perfil activo: ${profileActive().name}`);
+  if (context.dataset.profileContextBound !== 'true') {
+    context.dataset.profileContextBound = 'true';
+    context.addEventListener('click', profileOpenScreen);
+    context.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      profileOpenScreen();
+    });
+  }
 
   const applyKey = `${activeProfileId}:${exercise}`;
   if (root.dataset.profileApplied !== applyKey) {
@@ -413,9 +273,8 @@ function profileRenderContext(element: HTMLElement, saving: boolean): void {
 }
 
 function profileCurrentExercise(root: HTMLElement): ExerciseId | null {
-  const title = root.querySelector<HTMLElement>('.topbar h1')?.textContent?.trim() ?? '';
-  const ids: ExerciseId[] = ['arrows', 'numbers', 'colors', 'color-number', 'stroop', 'words', 'flow', 'memory-match', 'memory-matrix', 'spatial-match', 'star-search', 'rule-shift'];
-  return ids.find((id) => exerciseTitles[id] === title) ?? null;
+  const id = root.dataset.exerciseId as ExerciseId | undefined;
+  return id && EXERCISE_META[id] ? id : null;
 }
 
 function profileParseNumber(value: string): number {
@@ -428,7 +287,7 @@ function profileFieldNumber(form: HTMLFormElement, id: string): number {
   return input ? profileParseNumber(input.value) : Number.NaN;
 }
 
-function profileReadBase(form: HTMLFormElement): BaseSnapshot | null {
+function profileReadBase(form: HTMLFormElement): BaseConfig | null {
   const repetitions = profileFieldNumber(form, 'repetitions');
   const roundPauseInput = form.querySelector<HTMLInputElement>('#roundPause');
   const stimulusDuration = profileFieldNumber(form, 'stimulusDuration');
@@ -438,13 +297,23 @@ function profileReadBase(form: HTMLFormElement): BaseSnapshot | null {
   if (roundPauseInput) {
     const roundPause = profileParseNumber(roundPauseInput.value);
     if (!Number.isFinite(roundPause)) return null;
-    return { repetitions, waitMin: roundPause, waitMax: roundPause, stimulusDuration };
+    return {
+      repetitions,
+      waitMinMs: Math.round(roundPause * 1000),
+      waitMaxMs: Math.round(roundPause * 1000),
+      stimulusDurationMs: Math.round(stimulusDuration * 1000),
+    };
   }
 
   const waitMin = profileFieldNumber(form, 'waitMin');
   const waitMax = profileFieldNumber(form, 'waitMax');
   if (![waitMin, waitMax].every(Number.isFinite)) return null;
-  return { repetitions, waitMin, waitMax, stimulusDuration };
+  return {
+    repetitions,
+    waitMinMs: Math.round(waitMin * 1000),
+    waitMaxMs: Math.round(waitMax * 1000),
+    stimulusDurationMs: Math.round(stimulusDuration * 1000),
+  };
 }
 
 function profileReadForm(form: HTMLFormElement, exercise: ExerciseId): ExerciseSnapshot | null {
@@ -529,7 +398,7 @@ function profileSaveForm(form: HTMLFormElement, exercise: ExerciseId, context?: 
   if (!snapshot) return;
 
   const current = profileActive();
-  current.configs[exercise] = snapshot;
+  setExerciseConfig(current.configs, snapshot);
   current.updatedAt = new Date().toISOString();
   profilePersistAll();
   if (context) profileRenderContext(context, false);
@@ -548,10 +417,10 @@ function profileApplyToForm(form: HTMLFormElement, snapshot: ExerciseSnapshot): 
   applying = true;
   try {
     profileSetField(form, 'repetitions', snapshot.repetitions);
-    profileSetField(form, 'waitMin', snapshot.waitMin);
-    profileSetField(form, 'waitMax', snapshot.waitMax);
-    profileSetField(form, 'roundPause', Math.round(((snapshot.waitMin + snapshot.waitMax) / 2) * 10) / 10);
-    profileSetField(form, 'stimulusDuration', snapshot.stimulusDuration);
+    profileSetField(form, 'waitMin', snapshot.waitMinMs / 1000);
+    profileSetField(form, 'waitMax', snapshot.waitMaxMs / 1000);
+    profileSetField(form, 'roundPause', Math.round(((snapshot.waitMinMs + snapshot.waitMaxMs) / 2000) * 10) / 10);
+    profileSetField(form, 'stimulusDuration', snapshot.stimulusDurationMs / 1000);
 
     if (snapshot.kind === 'arrows') {
       form.querySelectorAll<HTMLInputElement>('input[name="direction"]').forEach((input) => {
@@ -616,16 +485,13 @@ function profileEnhanceResults(root: HTMLElement): void {
 }
 
 function profileEnhanceSettings(root: HTMLElement): void {
-  const clearPresets = root.querySelector<HTMLElement>('[data-action="clear-presets"]');
-  const card = clearPresets?.closest('.settings-card');
-  clearPresets?.remove();
-  card?.classList.add('profiles-settings-clean');
+  root.querySelector<HTMLElement>('[data-settings-data]')?.classList.add('profiles-settings-clean');
 }
 
 function profileOpenScreen(): void {
   if (!app || profilesScreenOpen) return;
-  const home = app.querySelector<HTMLElement>('.home-screen');
-  if (home) cachedHome = home;
+  cachedScreen = app.firstElementChild instanceof HTMLElement ? app.firstElementChild : null;
+  cachedScrollY = Math.max(0, window.scrollY);
   profilesScreenOpen = true;
   profileRenderScreen();
 }
@@ -734,13 +600,15 @@ function profileRestoreHome(): void {
   if (!app) return;
   profileCloseModal();
   profilesScreenOpen = false;
-  if (cachedHome) {
-    const home = cachedHome;
-    cachedHome = null;
+  if (cachedScreen) {
+    const screenRoot = cachedScreen;
+    const scrollY = cachedScrollY;
+    cachedScreen = null;
+    cachedScrollY = 0;
     profileClearApp();
-    app.appendChild(home);
-    profileEnhanceHome(home);
-    window.scrollTo(0, 0);
+    app.appendChild(screenRoot);
+    profileEnhanceScreen();
+    window.scrollTo(0, scrollY);
     return;
   }
   window.location.reload();
