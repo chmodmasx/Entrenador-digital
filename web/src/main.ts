@@ -1,6 +1,25 @@
 import './styles.css';
 import './passive.css';
 import './sections.css';
+import {
+  COGNITIVE_IDS,
+  cognitiveCardVisual,
+  cognitiveConfigSection,
+  cognitiveDefaults,
+  cognitiveMeta,
+  cognitivePresetSummary,
+  cognitiveResultDetailLabel,
+  cognitiveResultDetailValue,
+  cognitiveResultDetails,
+  cognitiveTrainingNote,
+  cognitiveTrainingSubtitle,
+  isCognitiveExercise,
+  mountCognitiveGame,
+  readCognitiveConfig,
+  type CognitiveConfig,
+  type CognitiveController,
+  type CognitiveExerciseId,
+} from './cognitive-games';
 
 type Direction =
   | 'up'
@@ -12,7 +31,8 @@ type Direction =
   | 'left'
   | 'up-left';
 
-type ExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words';
+type PassiveExerciseId = 'arrows' | 'numbers' | 'colors' | 'color-number' | 'stroop' | 'words';
+type ExerciseId = PassiveExerciseId | CognitiveExerciseId;
 type ColorId = 'blue' | 'red' | 'green' | 'yellow' | 'orange' | 'violet';
 type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'presets' | 'settings';
 type StroopInstruction = 'ink' | 'word';
@@ -72,7 +92,7 @@ interface WordsConfig extends BaseConfig {
   words: string[];
 }
 
-type ExerciseConfig = ArrowsConfig | NumbersConfig | ColorsConfig | ColorNumberConfig | StroopConfig | WordsConfig;
+type ExerciseConfig = ArrowsConfig | NumbersConfig | ColorsConfig | ColorNumberConfig | StroopConfig | WordsConfig | CognitiveConfig;
 
 interface AppSettings {
   countdown: boolean;
@@ -91,6 +111,8 @@ interface TrialResult {
   stimulus: string;
   shownAtMs: number;
   visibleForMs: number;
+  correct?: boolean;
+  responseMs?: number;
 }
 
 interface SessionSummary {
@@ -98,6 +120,10 @@ interface SessionSummary {
   planned: number;
   durationMs: number;
   stimulusDurationMs: number;
+  scored?: number;
+  correct?: number;
+  accuracy?: number;
+  averageResponseMs?: number;
 }
 
 interface StoredSession {
@@ -204,6 +230,7 @@ const exerciseMeta: Record<ExerciseId, ExerciseMeta> = {
     description: 'Consignas personalizadas que aparecen automáticamente durante la sesión.',
     symbol: 'ABC',
   },
+  ...cognitiveMeta,
 };
 
 const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
@@ -260,6 +287,12 @@ const defaultConfigs: Record<ExerciseId, ExerciseConfig> = {
     stimulusDurationMs: 1100,
     words: ['ADELANTE', 'ATRÁS', 'IZQUIERDA', 'DERECHA', 'SALTO', 'GIRO'],
   },
+  flow: cognitiveDefaults.flow,
+  'memory-match': cognitiveDefaults['memory-match'],
+  'memory-matrix': cognitiveDefaults['memory-matrix'],
+  'spatial-match': cognitiveDefaults['spatial-match'],
+  'star-search': cognitiveDefaults['star-search'],
+  'rule-shift': cognitiveDefaults['rule-shift'],
 };
 
 const SETTINGS_KEY = 'entrenador-digital-settings-v1';
@@ -275,6 +308,7 @@ let screen: Screen = 'home';
 let selectedExercise: ExerciseId = 'arrows';
 let configs: Record<ExerciseId, ExerciseConfig> = cloneConfigMap(defaultConfigs);
 let runtime: RuntimeSession | null = null;
+let cognitiveController: CognitiveController | null = null;
 let lastSession: StoredSession | null = null;
 let audioContext: AudioContext | null = null;
 
@@ -290,6 +324,12 @@ function cloneConfigMap(source: Record<ExerciseId, ExerciseConfig>): Record<Exer
     'color-number': cloneConfig(source['color-number']),
     stroop: cloneConfig(source.stroop),
     words: cloneConfig(source.words),
+    flow: cloneConfig(source.flow),
+    'memory-match': cloneConfig(source['memory-match']),
+    'memory-matrix': cloneConfig(source['memory-matrix']),
+    'spatial-match': cloneConfig(source['spatial-match']),
+    'star-search': cloneConfig(source['star-search']),
+    'rule-shift': cloneConfig(source['rule-shift']),
   };
 }
 
