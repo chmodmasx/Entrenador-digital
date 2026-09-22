@@ -476,6 +476,12 @@ function bindExerciseCarousel(): void {
   const dots = Array.from(app.querySelectorAll<HTMLButtonElement>('[data-carousel-page]'));
   let frame = 0;
 
+  const targetLeft = (page: HTMLElement): number => {
+    const centered = page.offsetLeft - (carousel.clientWidth - page.clientWidth) / 2;
+    const maximum = Math.max(0, carousel.scrollWidth - carousel.clientWidth);
+    return Math.max(0, Math.min(maximum, centered));
+  };
+
   const setActive = (index: number) => {
     const activeIndex = Math.max(0, Math.min(pages.length - 1, index));
     dots.forEach((dot, dotIndex) => {
@@ -486,18 +492,30 @@ function bindExerciseCarousel(): void {
     });
   };
 
+  const closestPageIndex = (): number => {
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    pages.forEach((page, index) => {
+      const distance = Math.abs(carousel.scrollLeft - targetLeft(page));
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+    return closestIndex;
+  };
+
   carousel.addEventListener('scroll', () => {
     if (frame) cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => {
-      const width = Math.max(1, carousel.clientWidth);
-      setActive(Math.round(carousel.scrollLeft / width));
-    });
+    frame = requestAnimationFrame(() => setActive(closestPageIndex()));
   }, { passive: true });
 
   dots.forEach((dot) => {
     dot.addEventListener('click', () => {
-      const index = Number(dot.dataset.carouselPage ?? 0);
-      carousel.scrollTo({ left: index * carousel.clientWidth, behavior: 'smooth' });
+      const index = Math.max(0, Math.min(pages.length - 1, Number(dot.dataset.carouselPage ?? 0)));
+      const page = pages[index];
+      if (!page) return;
+      carousel.scrollTo({ left: targetLeft(page), behavior: 'smooth' });
       setActive(index);
     });
   });

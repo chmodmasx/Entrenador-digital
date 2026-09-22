@@ -484,16 +484,12 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
     const stimulus = `${leafColor === 'green' ? 'Verde' : 'Naranja'} · apunta ${DIRECTION_LABELS[orientation]} · mueve ${DIRECTION_LABELS[movement]}`;
 
     const leafCount = randomInteger(4, 7);
-    const leafMarkup = Array.from({ length: leafCount }, (_, index) => {
-      const evenlySpaced = 16 + ((index + 1) * 68) / (leafCount + 1);
-      const track = Math.max(12, Math.min(88, evenlySpaced + randomInteger(-5, 5)));
-      const scale = (74 + randomInteger(0, 36)) / 100;
-      return `
-        <div class="flow-leaf-item flow-leaf-item-${movement}"
-             style="--flow-track:${track}%;--leaf-scale:${scale};--flow-duration:${Math.max(900, flowConfig.stimulusDurationMs)}ms">
-          ${leafSvg(orientation, FLOW_COLORS[leafColor])}
-        </div>`;
-    }).join('');
+    const leafMarkup = createFlowLeafLayout(leafCount, movement).map((leaf) => `
+      <div class="flow-leaf-item flow-leaf-item-${movement}"
+           style="--leaf-x:${leaf.x}%;--leaf-y:${leaf.y}%;--leaf-scale:${leaf.scale};--flow-duration:${Math.max(900, flowConfig.stimulusDurationMs)}ms">
+        ${leafSvg(orientation, FLOW_COLORS[leafColor])}
+      </div>`
+    ).join('');
 
     root.innerHTML = `
       <div class="cognitive-game flow-game" data-flow-swipe aria-label="Deslizá en la dirección correcta">
@@ -785,14 +781,77 @@ function bindDirectionalSwipe(
   });
 }
 
+interface FlowLeafPlacement {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+function createFlowLeafLayout(count: number, movement: CardinalDirection): FlowLeafPlacement[] {
+  const horizontal = movement === 'left' || movement === 'right';
+  const xRange: [number, number] = movement === 'right'
+    ? [18, 55]
+    : movement === 'left'
+      ? [45, 82]
+      : [15, 85];
+  const yRange: [number, number] = movement === 'down'
+    ? [18, 55]
+    : movement === 'up'
+      ? [45, 82]
+      : [14, 82];
+
+  for (const minimumDistance of [23, 21, 19, 17]) {
+    const placed: FlowLeafPlacement[] = [];
+    let attempts = 0;
+
+    while (placed.length < count && attempts < 700) {
+      attempts += 1;
+      const candidate: FlowLeafPlacement = {
+        x: randomBetweenFloat(xRange[0], xRange[1]),
+        y: randomBetweenFloat(yRange[0], yRange[1]),
+        scale: randomBetweenFloat(0.88, 1.08),
+      };
+
+      const separated = placed.every((leaf) => {
+        const dx = candidate.x - leaf.x;
+        const dy = candidate.y - leaf.y;
+        const distance = Math.hypot(dx, dy);
+        const scaleAllowance = 0.5 * (candidate.scale + leaf.scale);
+        return distance >= minimumDistance * scaleAllowance;
+      });
+
+      if (separated) placed.push(candidate);
+    }
+
+    if (placed.length === count) return placed;
+  }
+
+  const fallback = horizontal
+    ? [
+        { x: 22, y: 24 }, { x: 42, y: 48 }, { x: 24, y: 70 },
+        { x: 52, y: 20 }, { x: 50, y: 72 }, { x: 33, y: 36 }, { x: 34, y: 60 },
+      ]
+    : [
+        { x: 24, y: 22 }, { x: 48, y: 42 }, { x: 72, y: 24 },
+        { x: 22, y: 52 }, { x: 72, y: 54 }, { x: 38, y: 30 }, { x: 58, y: 62 },
+      ];
+
+  return fallback.slice(0, count).map((leaf, index) => ({
+    x: movement === 'left' ? 100 - leaf.x : leaf.x,
+    y: movement === 'up' ? 100 - leaf.y : leaf.y,
+    scale: 0.92 + (index % 3) * 0.06,
+  }));
+}
+
 function leafSvg(direction: CardinalDirection, color: string): string {
   const rotation: Record<CardinalDirection, number> = { up: -90, right: 0, down: 90, left: 180 };
   return `
-    <svg class="flow-leaf" viewBox="0 0 180 120" style="--leaf-color:${color};--leaf-rotation:${rotation[direction]}deg" aria-hidden="true">
+    <svg class="flow-leaf" viewBox="0 0 180 180" style="--leaf-color:${color};--leaf-rotation:${rotation[direction]}deg" aria-hidden="true">
       <g class="flow-leaf-rotator">
-        <path d="M26 60C58 23 111 17 150 35L171 60 150 85C111 103 58 97 26 60Z" fill="var(--leaf-color)"/>
-        <path d="M28 60H153" fill="none" stroke="rgba(255,255,255,.76)" stroke-width="5" stroke-linecap="round"/>
-        <path d="M26 60H6" fill="none" stroke="var(--leaf-color)" stroke-width="10" stroke-linecap="round"/>
+        <path d="M28 90C55 51 105 43 169 90C109 137 57 130 28 90Z" fill="var(--leaf-color)"/>
+        <path d="M28 90C73 86 119 87 158 90" fill="none" stroke="rgba(255,255,255,.78)" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M66 87 86 68M94 87 116 67M66 94 87 110M99 93 121 108" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.1" stroke-linecap="round"/>
+        <path d="M28 90H10" fill="none" stroke="var(--leaf-color)" stroke-width="7" stroke-linecap="round"/>
       </g>
     </svg>`;
 }
@@ -892,6 +951,11 @@ function randomInteger(min: number, max: number): number {
 function randomBetween(min: number, max: number): number {
   if (max <= min) return min;
   return Math.floor(min + Math.random() * (max - min));
+}
+
+function randomBetweenFloat(min: number, max: number): number {
+  if (max <= min) return min;
+  return min + Math.random() * (max - min);
 }
 
 function shuffle<T>(items: T[]): T[] {
