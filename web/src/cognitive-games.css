@@ -484,18 +484,15 @@
 
 .flow-leaf-item {
   position: absolute;
-  left: var(--leaf-x);
-  top: var(--leaf-y);
+  left: 0;
+  top: 0;
   width: clamp(72px, 18vw, 126px);
   aspect-ratio: 1;
-  transform: translate(-50%, -50%) scale(var(--leaf-scale));
-  will-change: left, top;
+  transform: translate3d(0, 0, 0) translate(-50%, -50%) scale(var(--leaf-scale));
+  transform-origin: center;
+  will-change: transform;
+  pointer-events: none;
 }
-
-.flow-leaf-item-right { animation: flowRight var(--flow-duration) linear forwards; }
-.flow-leaf-item-left { animation: flowLeft var(--flow-duration) linear forwards; }
-.flow-leaf-item-up { animation: flowUp var(--flow-duration) linear forwards; }
-.flow-leaf-item-down { animation: flowDown var(--flow-duration) linear forwards; }
 
 .flow-leaf {
   display: block;
@@ -508,26 +505,19 @@
 .flow-leaf-rotator {
   transform: rotate(var(--leaf-rotation));
   transform-origin: 90px 90px;
+  animation: flowLeafOpen 180ms cubic-bezier(.2,.75,.25,1) both;
+  animation-delay: var(--leaf-delay);
 }
 
-@keyframes flowRight {
-  from { left: var(--leaf-x); }
-  to { left: calc(var(--leaf-x) + 24%); }
-}
-
-@keyframes flowLeft {
-  from { left: var(--leaf-x); }
-  to { left: calc(var(--leaf-x) - 24%); }
-}
-
-@keyframes flowUp {
-  from { top: var(--leaf-y); }
-  to { top: calc(var(--leaf-y) - 24%); }
-}
-
-@keyframes flowDown {
-  from { top: var(--leaf-y); }
-  to { top: calc(var(--leaf-y) + 24%); }
+@keyframes flowLeafOpen {
+  from {
+    opacity: .82;
+    transform: rotate(var(--leaf-rotation)) scaleY(.08);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--leaf-rotation)) scaleY(1);
+  }
 }
 
 .flow-swipe-hint {
@@ -949,10 +939,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flow-leaf-item-right,
-  .flow-leaf-item-left,
-  .flow-leaf-item-up,
-  .flow-leaf-item-down {
-    animation-duration: .001ms !important;
+  .flow-leaf-rotator {
+    animation: none;
   }
 }
