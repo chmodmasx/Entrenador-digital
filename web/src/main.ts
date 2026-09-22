@@ -5,7 +5,6 @@ import {
   cognitiveCardVisual,
   cognitiveConfigSection,
   cognitiveDefaults,
-  cognitivePresetSummary,
   cognitiveResultDetailLabel,
   cognitiveResultDetailValue,
   cognitiveResultDetails,
@@ -36,16 +35,14 @@ import { getNativeAppVersion, nativeVibrate, setNativeTrainingMode } from './pla
 import { exportBackup, requestBackupImport } from './backup';
 import { profileEnhanceCurrentScreen } from './profiles';
 import {
-  PRESET_STORE,
   SESSION_STORE,
   clearStore as dbClearStore,
-  deleteRecord as dbDeleteRecord,
   listRecords as dbListRecords,
   putRecord as dbPutRecord,
 } from './storage/database';
 
 
-type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'presets' | 'settings';
+type Screen = 'home' | 'config' | 'training' | 'results' | 'history' | 'settings';
 
 interface BaseConfig {
   repetitions: number;
@@ -134,14 +131,6 @@ interface StoredSession {
   summary: SessionSummary;
 }
 
-interface Preset {
-  schemaVersion: 1;
-  id: string;
-  name: string;
-  exercise: ExerciseId;
-  config: ExerciseConfig;
-  createdAt: string;
-}
 
 interface RuntimeSession {
   createdAt: number;
@@ -332,7 +321,6 @@ function render(): void {
   if (screen === 'training') renderTraining();
   if (screen === 'results') renderResults();
   if (screen === 'history') void renderHistory();
-  if (screen === 'presets') void renderPresets();
   if (screen === 'settings') renderSettings();
 
   profileEnhanceCurrentScreen();
@@ -395,10 +383,6 @@ function renderHome(): void {
           <span class="shortcut-icon">${icon('history')}</span>
           <span><strong>Historial</strong><small>Sesiones realizadas</small></span>
         </button>
-        <button class="shortcut-card" data-action="presets">
-          <span class="shortcut-icon">${icon('sliders')}</span>
-          <span><strong>Presets</strong><small>Configuraciones guardadas</small></span>
-        </button>
         <button class="shortcut-card" data-action="settings">
           <span class="shortcut-icon">${icon('settings')}</span>
           <span><strong>Ajustes</strong><small>Experiencia de entrenamiento</small></span>
@@ -423,7 +407,6 @@ function renderHome(): void {
   });
   bindExerciseCarousel();
   app.querySelector<HTMLButtonElement>('[data-action="history"]')?.addEventListener('click', () => navigate('history'));
-  app.querySelector<HTMLButtonElement>('[data-action="presets"]')?.addEventListener('click', () => navigate('presets'));
   app.querySelector<HTMLButtonElement>('[data-action="settings"]')?.addEventListener('click', () => navigate('settings'));
 }
 
@@ -522,7 +505,6 @@ function renderConfig(): void {
 
         <p class="form-error" id="form-error" role="alert"></p>
         <div class="config-actions">
-          <button class="secondary-button" type="button" data-action="save-preset">Guardar preset</button>
           <button class="primary-button start-button" type="submit"><span>▶</span> Iniciar entrenamiento</button>
         </div>
       </form>
@@ -542,13 +524,7 @@ function renderConfig(): void {
     startTraining();
   });
 
-  app.querySelector<HTMLButtonElement>('[data-action="save-preset"]')?.addEventListener('click', () => {
-    if (!form) return;
-    const next = readAndValidateConfig(form);
-    if (!next) return;
-    configs[selectedExercise] = next;
-    openPresetNameModal(next);
-  });
+
 }
 
 function sharedConfigSections(config: ExerciseConfig): string {
@@ -1189,7 +1165,6 @@ function renderResults(): void {
       </section>
 
       <div class="result-actions result-actions-three">
-        <button class="secondary-button" data-action="save-preset">Guardar preset</button>
         <button class="primary-button" data-action="repeat">↻ &nbsp; Repetir</button>
         <button class="text-button" data-action="back">Volver al inicio</button>
       </div>
@@ -1202,7 +1177,6 @@ function renderResults(): void {
     prepareAudio();
     startTraining();
   });
-  app.querySelector<HTMLButtonElement>('[data-action="save-preset"]')?.addEventListener('click', () => openPresetNameModal(session.config));
 }
 
 function resultStats(session: StoredSession): string {
@@ -1321,77 +1295,6 @@ function renderHistoryContent(sessions: StoredSession[], filter: ExerciseId | 'a
   }).join('');
 }
 
-async function renderPresets(): Promise<void> {
-  app.innerHTML = `
-    <main class="app-shell presets-screen">
-      <header class="topbar">
-        <button class="icon-button" data-action="back" aria-label="Volver">←</button>
-        <div><h1>Presets</h1><p>Configuraciones listas para reutilizar</p></div>
-        <div class="topbar-spacer"></div>
-      </header>
-      <div class="preset-list" id="preset-list"><p class="loading">Cargando…</p></div>
-    </main>`;
-
-  app.querySelector<HTMLButtonElement>('[data-action="back"]')?.addEventListener('click', () => navigate('home'));
-  const presets = await listPresets();
-  if (screen !== 'presets') return;
-
-  const list = app.querySelector<HTMLDivElement>('#preset-list');
-  if (!list) return;
-  if (!presets.length) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div>≡</div><h2>No hay presets guardados</h2>
-        <p>Configura cualquier entrenamiento y pulsa “Guardar preset”.</p>
-        <button class="primary-button" data-action="train">Elegir entrenamiento</button>
-      </div>`;
-    list.querySelector<HTMLButtonElement>('[data-action="train"]')?.addEventListener('click', () => navigate('home'));
-    return;
-  }
-
-  list.innerHTML = presets.map((preset) => {
-    const meta = exerciseMeta[preset.exercise];
-    return `<article class="preset-card">
-      <div class="preset-symbol">${meta.symbol}</div>
-      <div class="preset-main"><strong>${escapeHtml(preset.name)}</strong><span>${meta.title} · ${preset.config.repetitions} estímulos</span><small>${presetConfigSummary(preset.config)}</small></div>
-      <div class="preset-actions"><button data-use="${preset.id}" class="mini-primary">Usar</button><button data-delete="${preset.id}" class="mini-danger" aria-label="Eliminar ${escapeHtml(preset.name)}">Eliminar</button></div>
-    </article>`;
-  }).join('');
-
-  list.querySelectorAll<HTMLButtonElement>('[data-use]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const preset = presets.find((item) => item.id === button.dataset.use);
-      if (!preset) return;
-      selectedExercise = preset.exercise;
-      configs[selectedExercise] = cloneConfig(preset.config);
-      navigate('config');
-    });
-  });
-
-  list.querySelectorAll<HTMLButtonElement>('[data-delete]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const preset = presets.find((item) => item.id === button.dataset.delete);
-      if (!preset) return;
-      openConfirmModal('Eliminar preset', `Se eliminará “${preset.name}”. Esta acción no afecta tu historial.`, 'Eliminar', async () => {
-        await deletePreset(preset.id);
-        if (screen === 'presets') void renderPresets();
-      });
-    });
-  });
-}
-
-function presetConfigSummary(config: ExerciseConfig): string {
-  if (isCognitiveExercise(config.kind)) return cognitivePresetSummary(config as CognitiveConfig);
-  const base = `${formatSeconds(config.waitMinMs)}–${formatSeconds(config.waitMaxMs)} de espera · ${formatSeconds(config.stimulusDurationMs)} visible`;
-  if (config.kind === 'arrows') return `${config.directions.length} direcciones · ${base}`;
-  if (config.kind === 'numbers') return `${config.minNumber}–${config.maxNumber} · ${base}`;
-  if (config.kind === 'colors') return `${config.colors.length} colores · ${base}`;
-  if (config.kind === 'color-number') return `${config.colors.length} colores · números ${config.minNumber}–${config.maxNumber} · ${base}`;
-  if (config.kind === 'stroop') return `${config.instruction === 'ink' ? 'Color visible' : 'Palabra escrita'} · ${base}`;
-  if (config.kind === 'words') return `${config.words.length} palabras · ${base}`;
-  return base;
-}
-
 function renderSettings(): void {
   const version = getAppVersion();
   app.innerHTML = `
@@ -1410,12 +1313,11 @@ function renderSettings(): void {
         ${toggleRow('setting-vibration', 'Vibración', 'Vibrar brevemente cuando aparece el estímulo', settings.vibration)}
       </section>
 
-      <section class="settings-card settings-list-card">
+      <section class="settings-card settings-list-card" data-settings-data>
         <div class="section-title"><span>⌁</span><div><h2>Datos locales</h2><p>Todo permanece guardado solamente en este dispositivo</p></div></div>
         <button class="settings-action-row" data-action="export-backup"><span><strong>Exportar copia de seguridad</strong><small>Guarda perfiles, ajustes e historial en un archivo JSON</small></span><b>›</b></button>
         <button class="settings-action-row" data-action="import-backup"><span><strong>Importar copia de seguridad</strong><small>Restaura datos guardados anteriormente</small></span><b>›</b></button>
         <button class="settings-action-row" data-action="clear-history"><span><strong>Borrar historial</strong><small>Elimina todas las sesiones guardadas</small></span><b>›</b></button>
-        <button class="settings-action-row" data-action="clear-presets"><span><strong>Borrar presets</strong><small>Elimina todas las configuraciones guardadas</small></span><b>›</b></button>
       </section>
 
       <section class="about-card">
@@ -1448,48 +1350,7 @@ function renderSettings(): void {
       await clearSessions();
     });
   });
-  app.querySelector<HTMLButtonElement>('[data-action="clear-presets"]')?.addEventListener('click', () => {
-    openConfirmModal('Borrar presets', 'Se eliminarán todas las configuraciones guardadas.', 'Borrar presets', async () => {
-      await clearPresets();
-    });
-  });
-}
 
-function openPresetNameModal(config: ExerciseConfig): void {
-  closeModal();
-  const meta = exerciseMeta[config.kind];
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <section class="app-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <h2 id="modal-title">Guardar preset</h2>
-      <p>Guarda esta configuración de ${meta.title} para volver a usarla rápidamente.</p>
-      <label class="modal-field"><span>Nombre</span><input id="preset-name" type="text" maxlength="40" value="${escapeAttribute(`${meta.title} personal`)}" autocomplete="off"></label>
-      <div class="modal-actions"><button class="secondary-button" data-modal-close>Cancelar</button><button class="primary-button" data-modal-save>Guardar</button></div>
-    </section>`;
-  document.body.appendChild(overlay);
-
-  const input = overlay.querySelector<HTMLInputElement>('#preset-name');
-  window.setTimeout(() => { input?.focus(); input?.select(); }, 50);
-  overlay.querySelector<HTMLButtonElement>('[data-modal-close]')?.addEventListener('click', closeModal);
-  overlay.addEventListener('click', (event) => { if (event.target === overlay) closeModal(); });
-  overlay.querySelector<HTMLButtonElement>('[data-modal-save]')?.addEventListener('click', async () => {
-    const name = (input?.value ?? '').trim();
-    if (!name) {
-      input?.focus();
-      return;
-    }
-    await savePreset({
-      schemaVersion: 1,
-      id: createId(),
-      name,
-      exercise: config.kind,
-      config: cloneConfig(config),
-      createdAt: new Date().toISOString(),
-    });
-    closeModal();
-    showToast('Preset guardado');
-  });
 }
 
 function openConfirmModal(title: string, message: string, confirmLabel: string, onConfirm: () => void | Promise<void>): void {
@@ -1624,10 +1485,6 @@ function escapeHtml(value: string): string {
   }[character] ?? character));
 }
 
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replace(/`/g, '&#96;');
-}
-
 function clearPhaseTimer(): void {
   if (!runtime || runtime.phaseTimer === undefined) return;
   window.clearTimeout(runtime.phaseTimer);
@@ -1649,14 +1506,6 @@ async function saveSession(session: StoredSession): Promise<void> {
   }
 }
 
-async function savePreset(preset: Preset): Promise<void> {
-  try {
-    await dbPutRecord(PRESET_STORE, preset);
-  } catch (error) {
-    console.error('No se pudo guardar el preset', error);
-  }
-}
-
 async function listSessions(): Promise<StoredSession[]> {
   try {
     const values = await dbListRecords<StoredSession>(SESSION_STORE);
@@ -1664,24 +1513,6 @@ async function listSessions(): Promise<StoredSession[]> {
   } catch (error) {
     console.error('No se pudo leer el historial', error);
     return [];
-  }
-}
-
-async function listPresets(): Promise<Preset[]> {
-  try {
-    const values = await dbListRecords<Preset>(PRESET_STORE);
-    return values.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  } catch (error) {
-    console.error('No se pudieron leer los presets', error);
-    return [];
-  }
-}
-
-async function deletePreset(id: string): Promise<void> {
-  try {
-    await dbDeleteRecord(PRESET_STORE, id);
-  } catch (error) {
-    console.error('No se pudo eliminar el preset', error);
   }
 }
 
@@ -1693,12 +1524,5 @@ async function clearSessions(): Promise<void> {
   }
 }
 
-async function clearPresets(): Promise<void> {
-  try {
-    await dbClearStore(PRESET_STORE);
-  } catch (error) {
-    console.error('No se pudieron borrar los presets', error);
-  }
-}
 
 render();
