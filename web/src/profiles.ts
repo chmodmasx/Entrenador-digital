@@ -332,7 +332,6 @@ function profileEnhanceScreen(): void {
   const settings = app.querySelector<HTMLElement>('.settings-screen');
   if (settings) profileEnhanceSettings(settings);
 
-  if (app.querySelector('.presets-screen')) profileOpenScreen();
 }
 
 function profileIconSvg(): string {
@@ -340,8 +339,6 @@ function profileIconSvg(): string {
 }
 
 function profileEnhanceHome(home: HTMLElement): void {
-  home.querySelector<HTMLElement>('[data-action="presets"]')?.remove();
-
   let entry = home.querySelector<HTMLButtonElement>('[data-profile-entry]');
   if (!entry) {
     entry = document.createElement('button');
@@ -371,7 +368,6 @@ function profileEnhanceConfig(root: HTMLElement): void {
   const form = root.querySelector<HTMLFormElement>('#exercise-config');
   if (!form) return;
 
-  root.querySelector<HTMLElement>('[data-action="save-preset"]')?.remove();
   root.querySelector('.config-actions')?.classList.add('profile-config-actions');
 
   const exercise = profileCurrentExercise(root);
@@ -643,10 +639,7 @@ function profileEnhanceResults(root: HTMLElement): void {
 }
 
 function profileEnhanceSettings(root: HTMLElement): void {
-  const clearPresets = root.querySelector<HTMLElement>('[data-action="clear-presets"]');
-  const card = clearPresets?.closest('.settings-card');
-  clearPresets?.remove();
-  card?.classList.add('profiles-settings-clean');
+  root.querySelector<HTMLElement>('[data-settings-data]')?.classList.add('profiles-settings-clean');
 }
 
 function profileOpenScreen(): void {
