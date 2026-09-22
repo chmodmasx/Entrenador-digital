@@ -14,19 +14,19 @@ Entrenador Digital prioriza compatibilidad, claridad visual, baja latencia y fac
 - Diseño profesional con `#019CE8`, `#031E54` y blanco como colores principales.
 - Pantalla de entrenamiento inmersiva y de alto contraste.
 - Motor de ejercicios separado de la interfaz para facilitar nuevos modos de entrenamiento.
-- Persistencia local, historial, presets y exportación/importación de datos.
+- Persistencia local, historial, perfiles con autosave y exportación/importación de datos.
 
-## Stack previsto
+## Stack
 
 - Android: Kotlin + Android WebView + WebViewAssetLoader.
 - Interfaz: HTML + CSS + TypeScript.
 - Build web: Vite.
-- Datos: IndexedDB.
+- Datos: localStorage + IndexedDB, con backup JSON.
 - Gráficos: SVG/Canvas, sin dependencias pesadas.
 - CI/CD: GitHub Actions para build, pruebas y releases APK.
 
 ## Estado
 
-Proyecto en fase inicial de especificación y construcción del MVP. El primer ejercicio completo será **Flechas**.
+Aplicación Android funcional con ejercicios de reacción y cognitivos, perfiles globales, historial, backup local, modo inmersivo y actualizador nativo validado.
 
 Consulta la documentación en `docs/` para arquitectura, producto, UX/UI y alcance del MVP.
