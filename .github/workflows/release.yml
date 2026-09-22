@@ -12,6 +12,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
     branches:
       - main
+      - refactor/architecture-consolidation
     paths:
       - '.release-version'
 
@@ -205,13 +206,31 @@ jobs:
           APK='${{ steps.assets.outputs.apk }}'
           SHA='${{ steps.assets.outputs.sha }}'
 
+          PRERELEASE=false
+          if [[ "${GITHUB_REF_TYPE:-}" == "branch" && "${GITHUB_REF_NAME:-}" != "main" ]]; then
+            PRERELEASE=true
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" "$SHA" --clobber
+            if [[ "$PRERELEASE" == "true" ]]; then
+              gh release edit "$TAG" --prerelease
+            fi
           else
-            gh release create "$TAG" "$APK" "$SHA" \
-              --target "$GITHUB_SHA" \
-              --title "Entrenador Digital $VERSION" \
-              --notes "Versión $VERSION de Entrenador Digital. APK universal firmado para instalación y actualizaciones automáticas."
+            RELEASE_ARGS=(
+              "$TAG" "$APK" "$SHA"
+              --target "$GITHUB_SHA"
+              --title "Entrenador Digital $VERSION"
+            )
+
+            if [[ "$PRERELEASE" == "true" ]]; then
+              RELEASE_ARGS+=(--prerelease)
+              RELEASE_ARGS+=(--notes "Pre-release $VERSION de Entrenador Digital para validar el refactor del PR #10. APK universal firmado.")
+            else
+              RELEASE_ARGS+=(--notes "Versión $VERSION de Entrenador Digital. APK universal firmado para instalación y actualizaciones automáticas.")
+            fi
+
+            gh release create "${RELEASE_ARGS[@]}"
           fi
 
       - name: Remove signing material
