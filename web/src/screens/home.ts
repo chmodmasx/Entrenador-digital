@@ -3,7 +3,6 @@ import { EXERCISE_META, type ExerciseId } from '../domain/exercises';
 
 export interface HomeScreenActions {
   onConfigure: (exercise: ExerciseId) => void;
-  onQuickStart: (exercise: ExerciseId) => void;
   onHistory: () => void;
   onSettings: () => void;
 }
@@ -19,14 +18,11 @@ function icon(name: 'history' | 'settings'): string {
 function exerciseCard(id: ExerciseId, visual: string): string {
   const meta = EXERCISE_META[id];
   return `
-    <article class="exercise-card-wrap">
-      <button class="exercise-card" data-exercise="${id}">
-        <span class="exercise-visual">${visual}</span>
-        <strong>${meta.title}</strong>
-        <small>${meta.subtitle}</small>
-      </button>
-      <button class="exercise-quick-start" type="button" data-quick-start="${id}" aria-label="Iniciar ${meta.title} con el perfil activo">▶</button>
-    </article>`;
+    <button class="exercise-card" data-exercise="${id}">
+      <span class="exercise-visual">${visual}</span>
+      <strong>${meta.title}</strong>
+      <small>${meta.subtitle}</small>
+    </button>`;
 }
 
 function bindCarousel(root: HTMLElement): void {
@@ -144,9 +140,6 @@ export function mountHomeScreen(root: HTMLElement, actions: HomeScreenActions): 
 
   root.querySelectorAll<HTMLButtonElement>('[data-exercise]').forEach((button) => {
     button.addEventListener('click', () => actions.onConfigure(button.dataset.exercise as ExerciseId));
-  });
-  root.querySelectorAll<HTMLButtonElement>('[data-quick-start]').forEach((button) => {
-    button.addEventListener('click', () => actions.onQuickStart(button.dataset.quickStart as ExerciseId));
   });
   root.querySelector<HTMLButtonElement>('[data-action="history"]')?.addEventListener('click', actions.onHistory);
   root.querySelector<HTMLButtonElement>('[data-action="settings"]')?.addEventListener('click', actions.onSettings);
