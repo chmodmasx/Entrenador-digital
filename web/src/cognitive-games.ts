@@ -113,38 +113,38 @@ export const COGNITIVE_IDS: CognitiveExerciseId[] = [
 export const cognitiveMeta: Record<CognitiveExerciseId, CognitiveMeta> = {
   flow: {
     title: 'Ebb & Flow',
-    subtitle: 'Cambia de regla al instante',
-    description: 'Hojas verdes y naranjas combinan orientación y movimiento. El color indica a qué dirección responder.',
+    subtitle: 'Cambiá entre punta y movimiento',
+    description: 'Deslizá en la dirección correcta: verde sigue la punta; naranja sigue el movimiento.',
     symbol: '❧',
   },
   'memory-match': {
     title: 'Memory Match',
-    subtitle: 'Compara con lo que viste antes',
-    description: 'Observa una secuencia y decide si la carta actual coincide con la que apareció N posiciones atrás.',
+    subtitle: 'Compará con lo que viste antes',
+    description: 'Mirá cada carta y decidí si es igual a la que apareció algunos turnos atrás.',
     symbol: '◇',
   },
   'memory-matrix': {
     title: 'Memory Matrix',
-    subtitle: 'Recuerda posiciones',
-    description: 'Memoriza las casillas iluminadas de una matriz y recupéralas cuando desaparezcan.',
+    subtitle: 'Memorizá posiciones',
+    description: 'Memorizá las casillas iluminadas y marcá las mismas cuando se apaguen.',
     symbol: '▦',
   },
   'spatial-match': {
     title: 'Spatial Speed Match',
-    subtitle: 'Detecta cambios espaciales',
-    description: 'Compara dos patrones de posiciones y responde rápidamente si son iguales o diferentes.',
+    subtitle: 'Compará dos patrones',
+    description: 'Decidí rápidamente si los dos patrones tienen los puntos en las mismas posiciones.',
     symbol: '⠿',
   },
   'star-search': {
     title: 'Star Search',
-    subtitle: 'Encuentra la figura sin pareja',
-    description: 'Busca entre muchas figuras y toca la única que no tiene una pareja idéntica.',
+    subtitle: 'Encontrá la figura sin pareja',
+    description: 'Buscá la única figura que no tiene otra igual y tocala.',
     symbol: '✦',
   },
   'rule-shift': {
     title: 'Disillusion',
-    subtitle: 'Alterna color y forma',
-    description: 'Relaciona piezas según la regla activa. La consigna cambia entre color y forma durante la sesión.',
+    subtitle: 'Cambiá entre color y forma',
+    description: 'Elegí la figura que coincida con el objetivo según la consigna: mismo color o misma forma.',
     symbol: '⬟',
   },
 };
@@ -239,10 +239,12 @@ export function cognitiveTrainingNote(id: CognitiveExerciseId): string {
 }
 
 export function cognitiveTrainingSubtitle(id: CognitiveExerciseId, config: CognitiveConfig): string {
-  if (id === 'memory-match' && config.kind === 'memory-match') return `${config.nBack}-back · memoria de trabajo`;
-  if (id === 'memory-matrix' && config.kind === 'memory-matrix') return `${config.gridSize}×${config.gridSize} · ${config.memoryCells} casillas`;
-  if (id === 'flow') return 'Verde: orientación · Naranja: movimiento';
-  if (id === 'rule-shift') return 'Regla variable: color o forma';
+  if (id === 'memory-match' && config.kind === 'memory-match') return `Compará con ${turnsBackLabel(config.nBack)} atrás`;
+  if (id === 'memory-matrix' && config.kind === 'memory-matrix') return `${config.gridSize}×${config.gridSize} · recordá ${config.memoryCells} casillas`;
+  if (id === 'flow') return 'Verde: seguí la punta · Naranja: seguí el movimiento';
+  if (id === 'spatial-match') return '¿Los dos patrones son iguales?';
+  if (id === 'star-search') return 'Encontrá la figura sin pareja';
+  if (id === 'rule-shift') return 'La consigna cambia entre color y forma';
   return 'Juego cognitivo en curso';
 }
 
@@ -265,10 +267,10 @@ export function cognitiveConfigSection(config: CognitiveConfig): string {
   if (config.kind === 'flow') {
     return `
       <section class="settings-card cognitive-rules-card">
-        <div class="section-title"><span>❧</span><div><h2>Reglas</h2><p>Dos propiedades compiten en cada hoja</p></div></div>
+        <div class="section-title"><span>❧</span><div><h2>Cómo responder</h2><p>El color indica qué dirección seguir</p></div></div>
         <div class="cognitive-rule-preview">
-          <div><span class="rule-leaf rule-leaf-green"></span><strong>Verde</strong><small>Responde hacia dónde apunta la hoja</small></div>
-          <div><span class="rule-leaf rule-leaf-orange"></span><strong>Naranja</strong><small>Responde hacia dónde se mueve</small></div>
+          <div><span class="rule-leaf rule-leaf-green"></span><strong>Verde</strong><small>Seguí la punta de la hoja</small></div>
+          <div><span class="rule-leaf rule-leaf-orange"></span><strong>Naranja</strong><small>Seguí el movimiento</small></div>
         </div>
       </section>`;
   }
@@ -276,15 +278,15 @@ export function cognitiveConfigSection(config: CognitiveConfig): string {
   if (config.kind === 'memory-match') {
     return `
       <section class="settings-card">
-        <div class="section-title"><span>◇</span><div><h2>Memoria</h2><p>Define cuántas cartas atrás debes comparar</p></div></div>
-        ${stepper('nBack', 'Distancia N-back', config.nBack, 'atrás', 1, 3, 1)}
+        <div class="section-title"><span>◇</span><div><h2>Memoria</h2><p>Elegí cuántos turnos atrás comparar</p></div></div>
+        ${stepper('nBack', 'Comparar con', config.nBack, 'turnos atrás', 1, 3, 1)}
       </section>`;
   }
 
   if (config.kind === 'memory-matrix') {
     return `
       <section class="settings-card">
-        <div class="section-title"><span>▦</span><div><h2>Matriz</h2><p>Ajusta el tamaño y la cantidad a recordar</p></div></div>
+        <div class="section-title"><span>▦</span><div><h2>Matriz</h2><p>Elegí el tamaño y cuántas casillas memorizar</p></div></div>
         ${stepper('gridSize', 'Tamaño de matriz', config.gridSize, '×', 3, 6, 1)}
         ${stepper('memoryCells', 'Casillas a recordar', config.memoryCells, '', 2, 12, 1)}
       </section>`;
@@ -293,7 +295,7 @@ export function cognitiveConfigSection(config: CognitiveConfig): string {
   if (config.kind === 'spatial-match') {
     return `
       <section class="settings-card">
-        <div class="section-title"><span>⠿</span><div><h2>Patrón</h2><p>Más puntos aumentan la carga visual</p></div></div>
+        <div class="section-title"><span>⠿</span><div><h2>Patrón</h2><p>Más puntos hacen más difícil comparar</p></div></div>
         ${stepper('itemCount', 'Puntos por patrón', config.itemCount, '', 3, 6, 1)}
       </section>`;
   }
@@ -301,15 +303,15 @@ export function cognitiveConfigSection(config: CognitiveConfig): string {
   if (config.kind === 'star-search') {
     return `
       <section class="settings-card">
-        <div class="section-title"><span>✦</span><div><h2>Búsqueda</h2><p>Más parejas hacen la búsqueda más exigente</p></div></div>
-        ${stepper('pairCount', 'Cantidad de parejas', config.pairCount, '', 3, 7, 1)}
+        <div class="section-title"><span>✦</span><div><h2>Búsqueda</h2><p>Más parejas hacen más difícil encontrar la figura única</p></div></div>
+        ${stepper('pairCount', 'Parejas en pantalla', config.pairCount, '', 3, 7, 1)}
       </section>`;
   }
 
   return `
     <section class="settings-card">
-      <div class="section-title"><span>⬟</span><div><h2>Cambio de criterio</h2><p>Elige cuántas alternativas aparecen por ronda</p></div></div>
-      ${stepper('optionCount', 'Opciones de respuesta', config.optionCount, '', 3, 4, 1)}
+      <div class="section-title"><span>⬟</span><div><h2>Opciones</h2><p>Elegí cuántas respuestas posibles aparecen</p></div></div>
+      ${stepper('optionCount', 'Cantidad de opciones', config.optionCount, '', 3, 4, 1)}
     </section>`;
 }
 
@@ -358,13 +360,13 @@ export function readCognitiveConfig(
 }
 
 export function cognitivePresetSummary(config: CognitiveConfig): string {
-  const base = `${formatSeconds(config.waitMinMs)}–${formatSeconds(config.waitMaxMs)} entre rondas`;
-  if (config.kind === 'flow') return `Orientación / movimiento · ${base}`;
-  if (config.kind === 'memory-match') return `${config.nBack}-back · ${base}`;
-  if (config.kind === 'memory-matrix') return `${config.gridSize}×${config.gridSize} · ${config.memoryCells} casillas · ${formatSeconds(config.stimulusDurationMs)} de memoria`;
-  if (config.kind === 'spatial-match') return `${config.itemCount} puntos · ${base}`;
-  if (config.kind === 'star-search') return `${config.pairCount} parejas + 1 distinta · ${base}`;
-  return `${config.optionCount} opciones · regla color/forma · ${base}`;
+  const pause = formatPause(config.waitMinMs, config.waitMaxMs);
+  if (config.kind === 'flow') return `Punta / movimiento · ${pause}`;
+  if (config.kind === 'memory-match') return `${turnsBackLabel(config.nBack)} atrás · ${pause}`;
+  if (config.kind === 'memory-matrix') return `${config.gridSize}×${config.gridSize} · ${config.memoryCells} casillas · ${formatSeconds(config.stimulusDurationMs)} para memorizar · ${pause}`;
+  if (config.kind === 'spatial-match') return `${config.itemCount} puntos · ${pause}`;
+  if (config.kind === 'star-search') return `${config.pairCount} parejas + 1 sin pareja · ${pause}`;
+  return `${config.optionCount} opciones · color / forma · ${pause}`;
 }
 
 export function cognitiveResultDetailLabel(config: CognitiveConfig): string {
@@ -387,7 +389,7 @@ export function cognitiveResultDetailValue(config: CognitiveConfig): string {
 
 export function cognitiveResultDetails(config: CognitiveConfig): string {
   if (config.kind === 'flow') {
-    return '<div><dt>Hoja verde</dt><dd>Orientación</dd></div><div><dt>Hoja naranja</dt><dd>Movimiento</dd></div>';
+    return '<div><dt>Verde</dt><dd>Seguir la punta</dd></div><div><dt>Naranja</dt><dd>Seguir el movimiento</dd></div>';
   }
   if (config.kind === 'memory-match') return `<div><dt>Distancia de memoria</dt><dd>${config.nBack}-back</dd></div>`;
   if (config.kind === 'memory-matrix') {
@@ -529,7 +531,7 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
 
     root.innerHTML = `
       <div class="cognitive-game memory-match-game">
-        <div class="memory-instruction">${primer ? 'Memorizá esta carta' : `¿Coincide con la de hace ${memoryConfig.nBack}?`}</div>
+        <div class="memory-instruction">${primer ? 'Recordá esta carta' : `¿Es igual a la de ${turnsBackLabel(memoryConfig.nBack)} atrás?`}</div>
         <div class="memory-card" style="--memory-color:${token.color}"><span>${token.symbol}</span></div>
         <div class="cognitive-feedback" data-feedback></div>
         <div class="binary-actions ${primer ? 'is-primer' : ''}">
@@ -588,7 +590,7 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
       if (stopped) return;
       const selectionStartedAt = performance.now();
       const instruction = root.querySelector<HTMLElement>('[data-matrix-instruction]');
-      if (instruction) instruction.textContent = `Tocá ${matrixConfig.memoryCells} casillas`;
+      if (instruction) instruction.textContent = `Marcá ${matrixConfig.memoryCells} casillas`;
       const selected = new Set<number>();
       const confirm = root.querySelector<HTMLButtonElement>('[data-matrix-confirm]');
 
@@ -665,7 +667,7 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
 
     root.innerHTML = `
       <div class="cognitive-game star-game">
-        <div class="star-instruction">Tocá la figura que no tiene pareja</div>
+        <div class="star-instruction">Tocá la figura sin pareja</div>
         <div class="star-board">
           ${items.map((item, index) => `
             <button type="button" class="star-item" data-star-index="${index}" data-key="${descriptorKey(item)}" aria-label="Figura ${index + 1}">
@@ -691,8 +693,8 @@ export function mountCognitiveGame(options: MountOptions): CognitiveController {
 
     root.innerHTML = `
       <div class="cognitive-game rule-game">
-        <div class="rule-banner"><small>REGLA ACTIVA</small><strong>${rule === 'color' ? 'COLOR' : 'FORMA'}</strong></div>
-        <div class="rule-target-wrap"><span>Objetivo</span>${rulePiece(target, 'rule-target')}</div>
+        <div class="rule-instruction">${rule === 'color' ? 'BUSCÁ EL MISMO COLOR' : 'BUSCÁ LA MISMA FORMA'}</div>
+        <div class="rule-target-wrap">${rulePiece(target, 'rule-target')}</div>
         <div class="rule-options">
           ${options.map((item, index) => `<button type="button" data-rule-index="${index}">${rulePiece(item, '')}</button>`).join('')}
         </div>
@@ -931,13 +933,7 @@ function makeRuleOptions(target: RuleDescriptor, rule: 'color' | 'shape', count:
 }
 
 function rulePiece(item: RuleDescriptor, extraClass: string): string {
-  const symbol: Record<RuleShape, string> = {
-    circle: '○',
-    triangle: '△',
-    square: '□',
-    diamond: '◇',
-  };
-  return `<span class="rule-piece ${extraClass}" style="--piece-color:${item.color}" aria-label="${item.shape}"><b>${symbol[item.shape]}</b></span>`;
+  return `<span class="rule-piece rule-shape-${item.shape} ${extraClass}" style="--piece-color:${item.color}" aria-label="${item.shape}"></span>`;
 }
 
 function randomItem<T>(items: readonly T[]): T {
@@ -971,4 +967,13 @@ function formatSeconds(milliseconds: number): string {
   const seconds = milliseconds / 1000;
   const value = Number.isInteger(seconds) ? seconds.toFixed(0) : seconds.toFixed(1).replace('.', ',');
   return `${value} s`;
+}
+
+function formatPause(minimumMs: number, maximumMs: number): string {
+  if (Math.abs(maximumMs - minimumMs) < 1) return `${formatSeconds(minimumMs)} de pausa`;
+  return `${formatSeconds(minimumMs)}–${formatSeconds(maximumMs)} entre rondas`;
+}
+
+function turnsBackLabel(turns: number): string {
+  return turns === 1 ? '1 turno' : `${turns} turnos`;
 }
