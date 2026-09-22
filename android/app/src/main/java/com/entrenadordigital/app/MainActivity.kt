@@ -201,6 +201,10 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
+    internal fun checkForUpdatesManually() {
+        updateManager.checkForUpdatesManually()
+    }
+
     internal fun setTrainingMode(enabled: Boolean) {
         updateManager.setTrainingMode(enabled)
 
