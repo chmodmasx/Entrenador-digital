@@ -35,7 +35,8 @@ function resultDetailValue(config: ExerciseConfig): string {
   if (config.kind === 'colors') return String(config.colors.length);
   if (config.kind === 'color-number') return `${config.colors.length} × ${config.maxNumber - config.minNumber + 1}`;
   if (config.kind === 'stroop') return config.instruction === 'ink' ? 'Color' : 'Palabra';
-  return String(config.words.length);
+  if (config.kind === 'words') return String(config.words.length);
+  return '—';
 }
 
 function resultStats(session: StoredSession): string {
@@ -75,7 +76,10 @@ function specificResultDetails(config: ExerciseConfig): string {
   if (config.kind === 'stroop') {
     return `<div><dt>Responder a</dt><dd>${config.instruction === 'ink' ? 'Color visible' : 'Palabra escrita'}</dd></div><div><dt>Coincidencias</dt><dd>${config.allowMatches ? 'Permitidas' : 'Evitadas'}</dd></div>`;
   }
-  return `<div><dt>Consignas</dt><dd>${config.words.join(', ')}</dd></div>`;
+  if (config.kind === 'words') {
+    return `<div><dt>Consignas</dt><dd>${config.words.join(', ')}</dd></div>`;
+  }
+  return '';
 }
 
 export function mountResultsScreen(
