@@ -130,7 +130,7 @@ export const cognitiveMeta: Record<CognitiveExerciseId, CognitiveMeta> = {
     symbol: '▦',
   },
   'spatial-match': {
-    title: 'Spatial Match',
+    title: 'Spatial Speed Match',
     subtitle: 'Detecta cambios espaciales',
     description: 'Compara dos patrones de posiciones y responde rápidamente si son iguales o diferentes.',
     symbol: '⠿',
